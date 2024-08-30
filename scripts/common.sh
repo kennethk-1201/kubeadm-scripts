@@ -52,7 +52,20 @@ curl -L https://download.opensuse.org/repositories/devel:kubic:libcontainers:sta
 curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | sudo apt-key --keyring /etc/apt/trusted.gpg.d/libcontainers.gpg add -
 
 sudo apt-get update
-sudo apt-get install cri-o cri-o-runc -y
+sudo apt-get install cri-o cri-o-runc criu -y
+
+# Configure CRI-O to use runc and enable CRIU support
+cat <<EOF | sudo tee /etc/crio/crio.conf
+[crio.runtime]
+default_runtime = "runc"
+enable_criu_support = true
+EOF
+
+# Update the default_runtime from "crun" to "runc"
+sed -i 's/default_runtime = "crun"/default_runtime = "runc"/' "$CONFIG_FILE"
+# Add the enable_criu_support option under the [crio.runtime] section
+# If it already exists, it will be updated; if not, it will be added
+sed -i '/\[crio.runtime\]/a enable_criu_support = true' "$CONFIG_FILE"
 
 sudo systemctl daemon-reload
 sudo systemctl enable crio --now
@@ -76,6 +89,22 @@ sudo apt-get update -y
 sudo apt-mark hold kubelet kubeadm kubectl
 
 sudo apt-get install -y jq
+
+# Create the kubeadm-config.yaml configuration file
+cat <<EOF | sudo tee /etc/kubernetes/kubeadm-config.yaml
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+localAPIEndpoint:
+  advertiseAddress: "10.0.0.10"
+  bindPort: 6443
+nodeRegistration:
+  criSocket: "unix:///var/run/crio/crio.sock"
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+featureGates:
+  ContainerCheckpoint: true
+EOF
 
 local_ip="$(ip --json addr show eth0 | jq -r '.[0].addr_info[] | select(.family == "inet") | .local')"
 cat > /etc/default/kubelet << EOF
