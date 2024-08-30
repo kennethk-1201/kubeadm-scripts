@@ -8,7 +8,7 @@ set -euxo pipefail
 
 ADVERTISE_ADDRESS="10.0.0.10"  # Replace with your actual IP address
 KUBERNETES_VERSION="1.29.0-1.1"
-CONFIG_FILE="/etc/crio/crio.conf.d/01-crio.conf"
+CONFIG_FILE="/etc/crio/crio.conf.d/01-crio-runc.conf"
 
 # disable swap
 sudo swapoff -a
