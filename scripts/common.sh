@@ -6,7 +6,9 @@ set -euxo pipefail
 
 # Kuernetes Variable Declaration
 
+ADVERTISE_ADDRESS="10.0.0.10"  # Replace with your actual IP address
 KUBERNETES_VERSION="1.29.0-1.1"
+CONFIG_FILE="/etc/crio/crio.conf.d/10-crio.conf"
 
 # disable swap
 sudo swapoff -a
@@ -95,7 +97,7 @@ cat <<EOF | sudo tee /etc/kubernetes/kubeadm-config.yaml
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: InitConfiguration
 localAPIEndpoint:
-  advertiseAddress: "10.0.0.10"
+  advertiseAddress: $ADVERTISE_ADDRESS
   bindPort: 6443
 nodeRegistration:
   criSocket: "unix:///var/run/crio/crio.sock"
