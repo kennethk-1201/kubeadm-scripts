@@ -81,10 +81,7 @@ sed -i 's/default_runtime = "crun"/default_runtime = "runc"/' "$CONFIG_FILE"
 # Add the enable_criu_support option under the [crio.runtime] section
 # If it already exists, it will be updated; if not, it will be added
 sed -i '/\[crio.runtime\]/a enable_criu_support = true' "$CONFIG_FILE"
-
-# Change the current configuration
-sed -i -e 's/# enable_criu_support = false/enable_criu_support = true/g' "$CONFIG_FILE"
-sed -i -e 's/# drop_infra_ctr = true/drop_infra_ctr = false/g' "$CONFIG_FILE"
+sed -i '/\[crio.runtime\]/a drop_infra_ctr = false' "$CONFIG_FILE"
 
 sudo systemctl daemon-reload
 sudo systemctl enable crio --now
