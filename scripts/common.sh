@@ -87,22 +87,6 @@ sudo systemctl enable crio --now
 
 echo "CRI runtime installed susccessfully"
 
-# Create the kubeadm-config.yaml configuration file
-cat <<EOF | sudo tee /etc/kubernetes/kubeadm-config.yaml
-apiVersion: kubeadm.k8s.io/v1beta3
-kind: InitConfiguration
-localAPIEndpoint:
-  advertiseAddress: $ADVERTISE_ADDRESS
-  bindPort: 6443
-nodeRegistration:
-  criSocket: "unix:///var/run/crio/crio.sock"
----
-apiVersion: kubelet.config.k8s.io/v1beta1
-kind: KubeletConfiguration
-featureGates:
-  ContainerCheckpoint: true
-EOF
-
 local_ip="$(ip --json addr show eth0 | jq -r '.[0].addr_info[] | select(.family == "inet") | .local')"
 cat > /etc/default/kubelet << EOF
 KUBELET_EXTRA_ARGS=--node-ip=$local_ip
