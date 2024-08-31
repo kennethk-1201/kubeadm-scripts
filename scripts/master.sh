@@ -4,6 +4,38 @@
 
 set -euxo pipefail
 
+# Create the kubeadm-config.yaml configuration file
+cat <<EOF | sudo tee /etc/kubernetes/kubeadm-config.yaml
+# kubeadm-config.yaml
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+featureGates:
+  ContainerCheckpoint: true
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+kubernetesVersion: v1.25.0
+apiServer:
+  extraArgs:
+    feature-gates: "ContainerCheckpoint=true"
+controllerManager:
+  extraArgs:
+    feature-gates: "ContainerCheckpoint=true"
+scheduler:
+  extraArgs:
+    feature-gates: "ContainerCheckpoint=true"
+networking:
+  podSubnet: 192.168.0.0/16
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+localAPIEndpoint:
+  advertiseAddress: 10.0.0.10
+  bindPort: 6443
+nodeRegistration:
+  criSocket: "unix:///var/run/crio/crio.sock"
+EOF
+
 # If you need public access to API server using the servers Public IP adress, change PUBLIC_IP_ACCESS to true.
 
 PUBLIC_IP_ACCESS="false"
