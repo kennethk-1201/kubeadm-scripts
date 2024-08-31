@@ -74,14 +74,8 @@ cat <<EOF | sudo tee /etc/crio/crio.conf
 [crio.runtime]
 default_runtime = "runc"
 enable_criu_support = true
+drop_infra_ctr = false
 EOF
-
-# Update the default_runtime from "crun" to "runc"
-sed -i 's/default_runtime = "crun"/default_runtime = "runc"/' "$CONFIG_FILE"
-# Add the enable_criu_support option under the [crio.runtime] section
-# If it already exists, it will be updated; if not, it will be added
-sed -i '/\[crio.runtime\]/a enable_criu_support = true' "$CONFIG_FILE"
-sed -i '/\[crio.runtime\]/a drop_infra_ctr = false' "$CONFIG_FILE"
 
 sudo systemctl daemon-reload
 sudo systemctl enable crio --now
