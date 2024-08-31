@@ -88,6 +88,7 @@ sed -i -e 's/# drop_infra_ctr = true/drop_infra_ctr = false/g' "$CONFIG_FILE"
 
 sudo systemctl daemon-reload
 sudo systemctl enable crio --now
+sudo systemctl start crio
 
 echo "CRI runtime installed susccessfully"
 
