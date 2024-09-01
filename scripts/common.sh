@@ -58,7 +58,7 @@ echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.i
 
 # Install dependencies
 sudo apt-get update -y
-sudo apt-get install cri-o cri-o-runc software-properties-common jq apt-transport-https ca-certificates curl gpg -y
+sudo apt-get install cri-o runc software-properties-common jq apt-transport-https ca-certificates curl gpg -y
 
 # Get keys to install kubelet, kubectl and kubeadm.
 
