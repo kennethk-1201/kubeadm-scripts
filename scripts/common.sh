@@ -73,7 +73,8 @@ sudo apt-get install cri-o software-properties-common jq apt-transport-https ca-
 # Get keys to install kubelet, kubectl and kubeadm.
 
 sudo apt-get update -y
-sudo apt-get install -y kubelet="$KUBERNETES_VERSION" kubectl="$KUBERNETES_VERSION" kubeadm="$KUBERNETES_VERSION"
+# sudo apt-get install -y kubelet="$KUBERNETES_VERSION" kubectl="$KUBERNETES_VERSION" kubeadm="$KUBERNETES_VERSION"
+sudo apt-get install -y kubelet kubeadm kubectl
 sudo apt-get update -y
 sudo apt-mark hold cri-o kubelet kubeadm kubectl
 
