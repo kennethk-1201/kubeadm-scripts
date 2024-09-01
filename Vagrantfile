@@ -14,6 +14,8 @@ Vagrant.configure("2") do |config|
         vb.memory = 4048
         vb.cpus = 2
     end
+    node.vm.provision "common-setup", type: "shell", :path => "scripts/common.sh"
+    node.vm.provision "master-setup", type: "shell", :path => "scripts/master.sh"
   end
 
   (1..2).each do |i|
@@ -26,6 +28,7 @@ Vagrant.configure("2") do |config|
         vb.memory = 2048
         vb.cpus = 1
     end
+    node.vm.provision "common-setup", type: "shell", :path => "scripts/common.sh"
   end
   
   end
