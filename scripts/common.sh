@@ -7,7 +7,7 @@ set -euxo pipefail
 # Kuernetes Variable Declaration
 
 ADVERTISE_ADDRESS="10.0.0.10"  # Replace with your actual IP address
-KUBERNETES_VERSION="1.29.0-1.1"
+KUBERNETES_VERSION="1.31"
 CONFIG_FILE="/etc/crio/crio.conf"
 
 # disable swap
@@ -22,7 +22,7 @@ sudo apt-get update -y
 
 OS="xUbuntu_22.04"
 
-VERSION="1.31"
+VERSION="1.30"
 
 # Create the .conf file to load the modules at bootup
 cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
@@ -43,21 +43,21 @@ EOF
 # Apply sysctl params without reboot
 sudo sysctl --system
 
-cat <<EOF | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
-deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /
-EOF
-cat <<EOF | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable:cri-o:$VERSION.list
-deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/$VERSION/$OS/ /
-EOF
+# cat <<EOF | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+# deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /
+# EOF
+# cat <<EOF | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable:cri-o:$VERSION.list
+# deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/$VERSION/$OS/ /
+# EOF
 
-curl -L https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:$VERSION/$OS/Release.key | sudo apt-key --keyring /etc/apt/trusted.gpg.d/libcontainers.gpg add -
-curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | sudo apt-key --keyring /etc/apt/trusted.gpg.d/libcontainers.gpg add -
+# curl -L https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:$VERSION/$OS/Release.key | sudo apt-key --keyring /etc/apt/trusted.gpg.d/libcontainers.gpg add -
+# curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | sudo apt-key --keyring /etc/apt/trusted.gpg.d/libcontainers.gpg add -
 
-# Install dependencies
-sudo apt-get update -y
-sudo apt-get install cri-o cri-o-runc software-properties-common jq apt-transport-https ca-certificates curl gpg -y
+# Create the keyrings directory if it doesn't exist
+if [ ! -d /etc/apt/keyrings ]; then
+  sudo mkdir -p -m 755 /etc/apt/keyrings
+fi
 
-# Get keys to install kubelet, kubectl and kubeadm.
 # Download and process the Kubernetes keyring, overwriting if necessary
 curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | sudo gpg --dearmor --batch --yes -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
@@ -65,6 +65,12 @@ echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.
 # Download and process the CRI-O keyring, overwriting if necessary
 curl -fsSL https://pkgs.k8s.io/addons:/cri-o:/stable:/v1.30/deb/Release.key | sudo gpg --dearmor --batch --yes -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
 echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.io/addons:/cri-o:/stable:/v1.30/deb/ /" | sudo tee /etc/apt/sources.list.d/cri-o.list
+
+# Install dependencies
+sudo apt-get update -y
+sudo apt-get install cri-o software-properties-common jq apt-transport-https ca-certificates curl gpg -y
+
+# Get keys to install kubelet, kubectl and kubeadm.
 
 sudo apt-get update -y
 sudo apt-get install -y kubelet="$KUBERNETES_VERSION" kubectl="$KUBERNETES_VERSION" kubeadm="$KUBERNETES_VERSION"
