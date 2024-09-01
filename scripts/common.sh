@@ -7,7 +7,7 @@ set -euxo pipefail
 # Kuernetes Variable Declaration
 
 ADVERTISE_ADDRESS="10.0.0.10"  # Replace with your actual IP address
-KUBERNETES_VERSION="1.31"
+KUBERNETES_VERSION="1.31.0-1.1"
 CONFIG_FILE="/etc/crio/crio.conf"
 
 # disable swap
