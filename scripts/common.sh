@@ -8,7 +8,7 @@ set -euxo pipefail
 
 ADVERTISE_ADDRESS="10.0.0.10"  # Replace with your actual IP address
 KUBERNETES_VERSION="1.31.0-1.1"
-CONFIG_FILE="/etc/crio/crio.conf"
+CONFIG_FILE="/etc/crio/crio.conf.d/10-crio.conf"
 
 # disable swap
 sudo swapoff -a
@@ -16,7 +16,6 @@ sudo swapoff -a
 # keeps the swaf off during reboot
 (crontab -l 2>/dev/null; echo "@reboot /sbin/swapoff -a") | crontab - || true
 sudo apt-get update -y
-
 
 # Install CRI-O Runtime
 
@@ -75,6 +74,18 @@ default_runtime = "runc"
 enable_criu_support = true
 drop_infra_ctr = false
 EOF
+
+# Check if the file exists
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Configuration file not found: $CONFIG_FILE"
+    exit 1
+fi
+
+# Update the default_runtime from "crun" to "runc"
+sed -i 's/default_runtime = "crun"/default_runtime = "runc"/' "$CONFIG_FILE"
+# Add the enable_criu_support option under the [crio.runtime] section
+# If it already exists, it will be updated; if not, it will be added
+sed -i '/\[crio.runtime\]/a enable_criu_support = true' "$CONFIG_FILE"
 
 sudo systemctl daemon-reload
 sudo systemctl enable --now crio
