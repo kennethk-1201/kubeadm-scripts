@@ -55,7 +55,7 @@ curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/
 
 # Install dependencies
 sudo apt-get update -y
-sudo apt-get install cri-o software-properties-common jq apt-transport-https ca-certificates curl gpg criu -y
+sudo apt-get install cri-o software-properties-common jq apt-transport-https ca-certificates curl gpg -y
 
 # Get keys to install kubelet, kubectl and kubeadm.
 curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-1-28-apt-keyring.gpg
