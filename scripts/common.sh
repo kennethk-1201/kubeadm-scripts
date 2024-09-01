@@ -68,13 +68,13 @@ echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.i
 
 # Install dependencies
 sudo apt-get update -y
-sudo apt-get install cri-o software-properties-common jq apt-transport-https ca-certificates curl gpg -y
+sudo apt-get install cri-o cri-o-runc software-properties-common jq apt-transport-https ca-certificates curl gpg -y
 
 # Get keys to install kubelet, kubectl and kubeadm.
 
 sudo apt-get update -y
-# sudo apt-get install -y kubelet="$KUBERNETES_VERSION" kubectl="$KUBERNETES_VERSION" kubeadm="$KUBERNETES_VERSION"
-sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-get install -y kubelet="$KUBERNETES_VERSION" kubectl="$KUBERNETES_VERSION" kubeadm="$KUBERNETES_VERSION"
+# sudo apt-get install -y kubelet kubeadm kubectl
 sudo apt-get update -y
 sudo apt-mark hold cri-o kubelet kubeadm kubectl
 
@@ -86,9 +86,8 @@ enable_criu_support = true
 drop_infra_ctr = false
 EOF
 
-# Temporarily remove for testing
-# sudo systemctl daemon-reload
-# sudo systemctl enable crio --now
+sudo systemctl daemon-reload
+sudo systemctl enable --now crio
 
 echo "CRI runtime installed susccessfully"
 
@@ -96,6 +95,3 @@ local_ip="$(ip --json addr show eth0 | jq -r '.[0].addr_info[] | select(.family 
 cat > /etc/default/kubelet << EOF
 KUBELET_EXTRA_ARGS=--node-ip=$local_ip
 EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable --now crio
