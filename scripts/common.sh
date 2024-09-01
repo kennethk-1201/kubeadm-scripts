@@ -66,7 +66,7 @@ echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-1-29-apt-keyring.gpg] https://
 
 sudo apt-get update -y
 sudo apt-get install -y kubelet="$KUBERNETES_VERSION" kubectl="$KUBERNETES_VERSION" kubeadm="$KUBERNETES_VERSION"
-
+sudo apt-get update -y
 sudo apt-mark hold cri-o kubelet kubeadm kubectl
 
 # Configure CRI-O to use runc and enable CRIU support
@@ -77,8 +77,9 @@ enable_criu_support = true
 drop_infra_ctr = false
 EOF
 
-sudo systemctl daemon-reload
-sudo systemctl enable crio --now
+# Temporarily remove for testing
+# sudo systemctl daemon-reload
+# sudo systemctl enable crio --now
 
 echo "CRI runtime installed susccessfully"
 
