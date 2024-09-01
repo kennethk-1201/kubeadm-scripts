@@ -54,7 +54,7 @@ sudo kubeadm config images pull
 if [[ "$PUBLIC_IP_ACCESS" == "false" ]]; then
     
     MASTER_PRIVATE_IP="10.0.0.10"
-    sudo kubeadm init  --config=/vagrant/kubernetes/kubeadm-config.yaml --node-name "$NODENAME" --ignore-preflight-errors Swap
+    sudo kubeadm init  --config=/etc/kubernetes/kubeadm-config.yaml --node-name "$NODENAME" --ignore-preflight-errors Swap
 
 elif [[ "$PUBLIC_IP_ACCESS" == "true" ]]; then
 
