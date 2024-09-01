@@ -14,7 +14,7 @@ featureGates:
 ---
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: ClusterConfiguration
-kubernetesVersion: v1.25.0
+kubernetesVersion: v1.31.0
 apiServer:
   extraArgs:
     feature-gates: "ContainerCheckpoint=true"
