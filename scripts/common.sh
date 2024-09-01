@@ -43,9 +43,6 @@ EOF
 # Apply sysctl params without reboot
 sudo sysctl --system
 
-# curl -L https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:$VERSION/$OS/Release.key | sudo apt-key --keyring /etc/apt/trusted.gpg.d/libcontainers.gpg add -
-# curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | sudo apt-key --keyring /etc/apt/trusted.gpg.d/libcontainers.gpg add -
-
 # Create the keyrings directory if it doesn't exist
 if [ ! -d /etc/apt/keyrings ]; then
   sudo mkdir -p -m 755 /etc/apt/keyrings
