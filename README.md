@@ -3,7 +3,7 @@
 This repository contains the scripts to set up a local Kubernetes cluster on multiple VMs (1 master and 2 workers) with the checkpointing feature gate enabled.
 
 ### Setup
-1. Install a VirtualBox
+1. Install a VirtualBox and Vagrant
 2. Setup the cluster by runnung `vagrant up` from the project root.
 
 ### Test the checkpointing feature
