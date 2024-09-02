@@ -4,7 +4,7 @@ This repository contains the scripts to set up a local Kubernetes cluster on mul
 
 ### Setup
 1. Install a VirtualBox and Vagrant
-2. Setup the cluster by runnung `vagrant up` from the project root. 
+2. Setup the cluster by runnung `vagrant up` from the project root. If you want to tear down the cluster, run `vagrant destroy` (you'll be prompted confirm deletion of nodes).
 
 ### Test the checkpointing feature
 Create a pod via kubectl on the master
