@@ -97,8 +97,3 @@ cat > /etc/default/kubelet << EOF
 KUBELET_EXTRA_ARGS=--node-ip=$local_ip
 EOF
 
-# Register worker
-if [ -f /vagrant/setup.sh ]; then
-  sudo /vagrant/setup.sh
-fi
-

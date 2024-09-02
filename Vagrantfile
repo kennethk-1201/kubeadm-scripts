@@ -29,6 +29,7 @@ Vagrant.configure("2") do |config|
         vb.cpus = 1
     end
     node.vm.provision "common-setup", type: "shell", :path => "scripts/common.sh"
+    node.vm.provision "register-node", type: "shell", :path => "scripts/register.sh"
   end
   
   end

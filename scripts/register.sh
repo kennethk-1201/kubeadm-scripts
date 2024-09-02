@@ -1,0 +1,1 @@
+sudo /vagrant/setup.sh
