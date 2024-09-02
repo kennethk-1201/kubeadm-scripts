@@ -72,3 +72,7 @@ sudo chown "$(id -u)":"$(id -g)" "$HOME"/.kube/config
 # Install Claico Network Plugin Network 
 
 kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+
+# Store registration command
+sudo kubeadm token create --print-join-command > /vagrant/setup.sh
+chmod 700 /vagrant/setup.sh
