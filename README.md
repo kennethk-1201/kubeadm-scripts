@@ -12,10 +12,14 @@ Create a pod via kubectl on the master
 sudo kubectl run webserver --image=nginx -n default
 ```
 
-**After the pod is running**, create checkpoint in the corresponding worker. Worker 1 has IP `10.0.0.11` while worker 2 has IP `10.0.0.12`.
+You can find out the worker it is deployed on using:
 ```
-# If pod is running on worker 2, run the code below.
-sudo curl -sk -X POST  "https://10.0.0.12:10250/checkpoint/default/webserver/webserver" \
+sudo kubectl describe pod webserver
+```
+
+**After the pod is running**, create the checkpoint in the corresponding worker. Worker 1 has IP `10.0.0.11` while worker 2 has IP `10.0.0.12`.
+```
+sudo curl -sk -X POST  "https://<worker-ip>:10250/checkpoint/default/webserver/webserver" \
   --key /etc/kubernetes/pki/apiserver-kubelet-client.key \
   --cacert /etc/kubernetes/pki/ca.crt \
   --cert /etc/kubernetes/pki/apiserver-kubelet-client.crt
