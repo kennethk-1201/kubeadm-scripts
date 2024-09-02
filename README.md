@@ -21,4 +21,4 @@ sudo curl -sk -X POST  "https://10.0.0.12:10250/checkpoint/default/webserver/web
   --cert /etc/kubernetes/pki/apiserver-kubelet-client.crt
 ```
 
-The checkpoint tar file should be stored in `/var/lib/kubelet/checkpoints/checkpoint-<pod>_<namespace>-<container>-<timestamp>.tar`.
+The checkpoint tar file should be stored in `/var/lib/kubelet/checkpoints/checkpoint-<pod>_<namespace>-<container>-<timestamp>.tar` inside the corresponding worker.
