@@ -73,6 +73,9 @@ sudo chown "$(id -u)":"$(id -g)" "$HOME"/.kube/config
 
 kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 
+# Start metrics server
+kubectl apply -f https://raw.githubusercontent.com/techiescamp/kubeadm-scripts/main/manifests/metrics-server.yaml
+
 # Store registration command
 sudo kubeadm token create --print-join-command > /vagrant/setup.sh
 chmod 700 /vagrant/setup.sh
