@@ -43,11 +43,9 @@ NODENAME=$(hostname -s)
 POD_CIDR="192.168.0.0/16"
 
 # Pull required images
-
 sudo kubeadm config images pull
 
 # Initialize kubeadm based on PUBLIC_IP_ACCESS
-
 if [[ "$PUBLIC_IP_ACCESS" == "false" ]]; then
     
     MASTER_PRIVATE_IP="10.0.0.10"
@@ -64,13 +62,11 @@ else
 fi
 
 # Configure kubeconfig
-
 mkdir -p "$HOME"/.kube
 sudo cp -i /etc/kubernetes/admin.conf "$HOME"/.kube/config
 sudo chown "$(id -u)":"$(id -g)" "$HOME"/.kube/config
 
-# Install Claico Network Plugin Network 
-
+# Install Claico Network Plugin Network
 kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 
 # Store registration command
