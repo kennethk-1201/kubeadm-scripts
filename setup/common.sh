@@ -20,7 +20,6 @@ sudo apt-get update -y
 echo "deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_$(lsb_release -rs)/ /" | sudo tee /etc/apt/sources.list.d/libcontainers.list
 curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_$(lsb_release -rs)/Release.key | sudo apt-key add -
 
-
 # Install dependencies
 sudo apt-get update -qq && apt-get install -y \
   libbtrfs-dev \
@@ -42,7 +41,8 @@ sudo apt-get update -qq && apt-get install -y \
   gcc \
   make \
   runc \
-  jq
+  jq \
+  criu
 
 # Networking prerequisites
 cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
