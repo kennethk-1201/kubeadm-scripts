@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # =============================================================================
-# Pod Migration Script Using CRI-O's CRI API
+# Pod Migration Script Using CRI-O
 # =============================================================================
 # This script automates the migration of a Kubernetes Pod from a source node
-# to a destination node using CRI-O's CRI API. It performs container
+# to a destination node using CRI-O. It performs container
 # checkpointing on the source node and restores them on the destination node.
 #
 # Usage:
@@ -50,9 +50,6 @@ check_arguments() {
 }
 
 # ---------------------------
-# Function: Source Node - Checkpoint Containers
-# ---------------------------
-# ---------------------------
 # Function: Source Node - Checkpoint Containers and Capture Metadata
 # ---------------------------
 checkpoint_containers() {
@@ -97,9 +94,6 @@ checkpoint_containers() {
 }
 
 
-# ---------------------------
-# Function: Transfer Data to Destination Node
-# ---------------------------
 # ---------------------------
 # Function: Transfer Data to Destination Node
 # ---------------------------
