@@ -6,6 +6,7 @@ set -euo pipefail
 
 ADVERTISE_ADDRESS="10.0.0.10"
 KUBERNETES_VERSION="1.31.0-1.1"
+GO_VERSION="1.21.0"
 CONFIG_FILE="/etc/crio/crio.conf.d/10-crio.conf"
 
 # Disable swap - Kubernetes does not support swap memory
@@ -38,6 +39,18 @@ curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/
 # Update and install all necessary packages in one go
 sudo apt-get update
 sudo apt-get install -y socat conntrack libbtrfs-dev containers-common git libassuan-dev libglib2.0-dev libc6-dev libgpgme-dev libgpg-error-dev libseccomp-dev libsystemd-dev libselinux1-dev pkg-config go-md2man cri-o-runc libudev-dev software-properties-common gcc make runc jq criu golang-go kubectl="$KUBERNETES_VERSION" kubeadm="$KUBERNETES_VERSION"
+
+# Install Go
+curl -LO "https://golang.org/dl/go$GO_VERSION.linux-amd64.tar.gz"
+sudo tar -C /usr/local -xzf go$GO_VERSION.linux-amd64.tar.gz
+echo 'export PATH=$PATH:/usr/local/go/bin' | sudo tee -a /etc/profile
+source /etc/profile
+go version
+
+# Install required dependencies for pod migration script
+sudo apt-get update
+sudo apt-get install -y cri-tools jq rsync openssh-client openssh-server buildah
+curl -sSL "https://github.com/fullstorydev/grpcurl/releases/download/v1.8.7/grpcurl_1.8.7_linux_arm64.tar.gz" | sudo tar -xz -C /usr/local/bin
 
 # Install conmon
 git clone https://github.com/containers/conmon
@@ -97,6 +110,9 @@ local_ip="$(ip --json addr show eth0 | jq -r '.[0].addr_info[] | select(.family 
 sudo tee /etc/default/kubelet > /dev/null <<EOF
 KUBELET_EXTRA_ARGS=--node-ip=$local_ip
 EOF
+
+# Reload and restart the cri-o service to apply changes
+sudo systemctl restart crio
 
 # Reload and restart the kubelet service to apply changes
 sudo systemctl restart kubelet

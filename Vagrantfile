@@ -17,6 +17,7 @@ Vagrant.configure("2") do |config|
     end
     master.vm.synced_folder "../kubernetes", "/vm/kubernetes"
     master.vm.synced_folder "../cri-o", "/vm/checkpoint/cri-o", create: true
+    master.vm.synced_folder "migration", "/vm/pod_migration", create: true
     master.vm.provision "common-setup", type: "shell", path: "setup/common.sh"
     master.vm.provision "master-setup", type: "shell", path: "setup/master.sh"
   end
@@ -33,6 +34,7 @@ Vagrant.configure("2") do |config|
       end
       node.vm.synced_folder "../kubernetes", "/vm/kubernetes"
       node.vm.synced_folder "../cri-o", "/vm/checkpoint/cri-o", create: true
+      node.vm.synced_folder "migration", "/vm/pod_migration", create: true
       node.vm.provision "common-setup", type: "shell", path: "setup/common.sh"
       node.vm.provision "register-node", type: "shell", path: "setup/register.sh"
     end
