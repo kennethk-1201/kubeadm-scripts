@@ -6,6 +6,8 @@ Vagrant.configure("2") do |config|
       echo "10.0.0.12  worker-node02" >> /etc/hosts
   SHELL
   
+  config.vm.network "forwarded_port", guest: 6443, host: 6443
+  
   config.vm.define "master" do |master|
     master.vm.box = "bento/ubuntu-22.04"
     master.vm.hostname = "master-node"
