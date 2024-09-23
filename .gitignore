@@ -9,6 +9,7 @@
 .vscode
 **/..vscode
 setup.sh
+myuser.*
 
 # Icon must end with two \r
 Icon
