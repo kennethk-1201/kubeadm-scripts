@@ -79,3 +79,7 @@ kubectl apply -f https://raw.githubusercontent.com/techiescamp/kubeadm-scripts/m
 # Store registration command
 sudo kubeadm token create --print-join-command > /vagrant/setup.sh
 chmod 700 /vagrant/setup.sh
+
+# Update host
+sudo cp /etc/kubernetes/admin.conf .kube/config
+sudo chmod 777 .kube/config 
