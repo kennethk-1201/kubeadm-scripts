@@ -6,7 +6,6 @@ Vagrant.configure("2") do |config|
       echo "10.0.0.12  worker-node02" >> /etc/hosts
   SHELL
   
-  config.vm.network "forwarded_port", guest: 6443, host: 6443
   
   config.vm.define "master" do |master|
     master.vm.box = "bento/ubuntu-22.04"
@@ -16,6 +15,8 @@ Vagrant.configure("2") do |config|
         vb.memory = 4048
         vb.cpus = 2
     end
+    master.vm.network "forwarded_port", guest: 6443, host: 6443, protocol: "tcp"
+    master.vm.synced_folder "../.kube", "/home/vagrant/.kube"
     master.vm.provision "common-setup", type: "shell", :path => "scripts/common.sh", env: {"NODE_IP" => "10.0.0.10"}
     master.vm.provision "master-setup", type: "shell", :path => "scripts/master.sh"
   end
