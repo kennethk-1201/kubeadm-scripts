@@ -4,6 +4,14 @@
 
 set -euxo pipefail
 
+# If you need public access to API server using the servers Public IP adress, change PUBLIC_IP_ACCESS to true.
+
+IPADDR="10.0.0.10"
+PUBLIC_IP_ACCESS="false"
+NODENAME=$(hostname -s)
+POD_CIDR="192.168.0.0/16"
+SERVICE_CIDR="172.16.0.0/16"
+
 # Create the kubeadm-config.yaml configuration file
 cat <<EOF | sudo tee /etc/kubernetes/kubeadm-config.yaml
 # kubeadm-config.yaml
@@ -16,6 +24,8 @@ apiVersion: kubeadm.k8s.io/v1beta3
 kind: ClusterConfiguration
 kubernetesVersion: v1.31.0
 apiServer:
+  certSANs:
+    - $IPADDR
   extraArgs:
     feature-gates: "ContainerCheckpoint=true"
 controllerManager:
@@ -25,22 +35,18 @@ scheduler:
   extraArgs:
     feature-gates: "ContainerCheckpoint=true"
 networking:
-  podSubnet: 192.168.0.0/16
+  serviceSubnet: $SERVICE_CIDR
+  podSubnet: $POD_CIDR
 ---
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: InitConfiguration
 localAPIEndpoint:
-  advertiseAddress: 10.0.0.10
+  advertiseAddress: $IPADDR
   bindPort: 6443
 nodeRegistration:
   criSocket: "unix:///var/run/crio/crio.sock"
+---
 EOF
-
-# If you need public access to API server using the servers Public IP adress, change PUBLIC_IP_ACCESS to true.
-
-PUBLIC_IP_ACCESS="false"
-NODENAME=$(hostname -s)
-POD_CIDR="192.168.0.0/16"
 
 # Pull required images
 
