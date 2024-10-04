@@ -4,6 +4,14 @@
 
 set -euxo pipefail
 
+# Check if INSTALL_K8S is set; default to false if not provided
+INSTALL_K8S="${INSTALL_K8S:-false}"
+
+if [ "$INSTALL_K8S" != "true" ]; then
+    echo "Skipping Kubernetes master setup as INSTALL_K8S is not set to true."
+    exit 0
+fi
+
 sudo mkdir -p /etc/kubernetes/
 
 sudo apt-get update

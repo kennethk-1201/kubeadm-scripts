@@ -1,3 +1,6 @@
+# User-configurable option
+INSTALL_K8S = false
+
 Vagrant.configure("2") do |config|
   config.vm.provision "shell", inline: <<-SHELL
       apt-get update -y
@@ -15,11 +18,22 @@ Vagrant.configure("2") do |config|
       prl.memory = 4048
       prl.cpus = 2
     end
+
+    # Sync the directory containing the Go tarball
+    master.vm.synced_folder "go-tarball", "/vm/go-tarball", create: true
+
+    # Other synced folders
     master.vm.synced_folder "../kubernetes", "/vm/kubernetes"
     master.vm.synced_folder "../cri-o", "/vm/checkpoint/cri-o", create: true
-    master.vm.synced_folder "migration", "/vm/pod_migration", create: true
-    master.vm.provision "common-setup", type: "shell", path: "setup/common.sh"
-    master.vm.provision "master-setup", type: "shell", path: "setup/master.sh"
+    master.vm.synced_folder "migration", "/vm/migration", create: true
+
+    # Provision common setup
+    master.vm.provision "common-setup", type: "shell", path: "setup/common.sh", env: { 'INSTALL_K8S' => INSTALL_K8S.to_s }
+    master.vm.provision "go-move", type: "shell", inline: <<-SHELL
+      # Move the Go tarball to the desired location
+      mv /vm/go-tarball/go1.23.2.linux-arm64.tar.gz /vm/go1.23.2.linux-arm64.tar.gz
+    SHELL
+    master.vm.provision "master-setup", type: "shell", path: "setup/master.sh", env: { 'INSTALL_K8S' => INSTALL_K8S.to_s }
   end
 
   # Define worker nodes
@@ -32,11 +46,22 @@ Vagrant.configure("2") do |config|
         prl.memory = 2048
         prl.cpus = 1
       end
+
+      # Sync the directory containing the Go tarball
+      node.vm.synced_folder "go-tarball", "/vm/go-tarball", create: true
+
+      # Other synced folders
       node.vm.synced_folder "../kubernetes", "/vm/kubernetes"
       node.vm.synced_folder "../cri-o", "/vm/checkpoint/cri-o", create: true
-      node.vm.synced_folder "migration", "/vm/pod_migration", create: true
-      node.vm.provision "common-setup", type: "shell", path: "setup/common.sh"
-      node.vm.provision "register-node", type: "shell", path: "setup/register.sh"
+      node.vm.synced_folder "migration", "/vm/migration", create: true
+
+      # Provision common setup
+      node.vm.provision "common-setup", type: "shell", path: "setup/common.sh", env: { 'INSTALL_K8S' => INSTALL_K8S.to_s }
+      node.vm.provision "go-move", type: "shell", inline: <<-SHELL
+        # Move the Go tarball to the desired location
+        mv /vm/go-tarball/go1.23.2.linux-arm64.tar.gz /vm/go1.23.2.linux-arm64.tar.gz
+      SHELL
+      node.vm.provision "register-node", type: "shell", path: "setup/register.sh", env: { 'INSTALL_K8S' => INSTALL_K8S.to_s }
     end
   end
 
