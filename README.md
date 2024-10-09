@@ -1,28 +1,52 @@
-## Kubernetes Checkpointing Setup
+# CRI-O Pod and Container Setup
 
-This repository contains the scripts to set up a local Kubernetes cluster on multiple VMs (1 master and 2 workers) with the checkpointing feature gate enabled.
+This guide provides detailed instructions for setting up a Pod and Container using `crictl` on a Vagrant Ubuntu environment with CRI-O.
 
-### Setup
-1. Install VirtualBox and Vagrant
-2. Setup the cluster by runnung `vagrant up` from the project root. If you want to tear down the cluster, run `vagrant destroy` (you'll be prompted confirm deletion of nodes).
+## Prerequisites
+- Vagrant running Ubuntu (preferably ARM-compatible for Mac M1 users).
+- CRI-O installed and configured.
+- `crictl` installed and accessible.
 
-### Test the checkpointing feature
-Create a pod via kubectl on the master
-```
-sudo kubectl run webserver --image=nginx -n default
-```
+## Additional Steps Required
 
-You can find out the worker it is deployed on using:
-```
-sudo kubectl describe pod webserver
-```
+### Step 1: Pull the Busybox Image
+Pull the `busybox` image using `crictl`:
 
-**After the pod is running**, create the checkpoint in the corresponding worker. Worker 1 has IP `10.0.0.11` while worker 2 has IP `10.0.0.12`.
-```
-sudo curl -sk -X POST  "https://<worker-ip>:10250/checkpoint/default/webserver/webserver" \
-  --key /etc/kubernetes/pki/apiserver-kubelet-client.key \
-  --cacert /etc/kubernetes/pki/ca.crt \
-  --cert /etc/kubernetes/pki/apiserver-kubelet-client.crt
+```bash
+sudo crictl pull docker.io/library/busybox:latest
 ```
 
-The checkpoint tar file should be stored in `/var/lib/kubelet/checkpoints/checkpoint-<pod>_<namespace>-<container>-<timestamp>.tar` inside the corresponding worker.
+Verify the image is pulled:
+
+```bash
+sudo crictl images | grep busybox
+```
+
+### Step 2: Create the Pod
+Create the Pod using `crictl`:
+
+```bash
+POD_ID=$(sudo crictl runp pod-config.json)
+```
+
+### Step 3: Create the Container in the Pod
+Create the container inside the Pod using the command:
+
+```bash
+CONTAINER_ID=$(sudo crictl create "$POD_ID" container-config.json pod-config.json)
+```
+
+### Step 4: Start the Container
+Start the container:
+
+```bash
+sudo crictl start "$CONTAINER_ID"
+```
+
+### Step 5: Verify the Pod and Container
+Verify that the Pod and Container are running:
+
+```bash
+sudo crictl pods
+sudo crictl ps
+```

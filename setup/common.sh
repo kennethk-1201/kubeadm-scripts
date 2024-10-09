@@ -1,152 +1,138 @@
 #!/bin/bash
 
-set -euo pipefail
-
-# Check if INSTALL_K8S is set; default to false if not provided
-INSTALL_K8S="${INSTALL_K8S:-false}"
-
-ADVERTISE_ADDRESS="10.0.0.10"
-KUBERNETES_VERSION="1.31.0-1.1"
-CONFIG_FILE="/etc/crio/crio.conf.d/10-crio.conf"
-
-# Disable swap if Kubernetes is being installed
-if [ "$INSTALL_K8S" = "true" ]; then
-    sudo swapoff -a
-    echo "@reboot /sbin/swapoff -a" | sudo tee -a /var/spool/cron/crontabs/root > /dev/null
-fi
-
-# Networking prerequisites
-echo -e "overlay\nbr_netfilter" | sudo tee /etc/modules-load.d/k8s.conf > /dev/null
-sudo modprobe overlay br_netfilter
-
-# Apply sysctl params without reboot for networking
-sudo tee /etc/sysctl.d/k8s.conf > /dev/null <<EOF
-net.bridge.bridge-nf-call-iptables = 1
-net.bridge.bridge-nf-call-ip6tables = 1
-net.ipv4.ip_forward = 1
-EOF
-sudo sysctl --system
-
-# Configure package repositories and keys
-sudo mkdir -p -m 755 /etc/apt/keyrings
-
-if [ "$INSTALL_K8S" = "true" ]; then
-    # Kubernetes packages
-    curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-    echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list > /dev/null
-fi
+set -euxo pipefail
 
 # CRI-O packages
 echo "deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_$(lsb_release -rs)/ /" | sudo tee /etc/apt/sources.list.d/libcontainers.list > /dev/null
 curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_$(lsb_release -rs)/Release.key | sudo apt-key add -
 
-# Update and install necessary packages
+# Disable Byobu if installed
+sudo apt-get purge -y byobu || true
+
+# Update package lists
 sudo apt-get update
 
-# Common packages
-sudo apt-get install -y buildah socat conntrack libbtrfs-dev git \
-libassuan-dev libglib2.0-dev libc6-dev libgpgme-dev libgpg-error-dev libseccomp-dev \
-libsystemd-dev libselinux1-dev pkg-config go-md2man libudev-dev software-properties-common \
-gcc make runc jq criu rsync openssh-client openssh-server etcd
+# Install necessary packages
+sudo apt-get install -y \
+    build-essential \
+    git \
+    make \
+    gcc \
+    protobuf-compiler \
+    pkg-config \
+    libseccomp-dev \
+    libapparmor-dev \
+    libgpgme-dev \
+    btrfs-progs \
+    libbtrfs-dev \
+    libdevmapper-dev \
+    libudev-dev \
+    libassuan-dev \
+    software-properties-common \
+    libglib2.0-dev \
+    libostree-dev \
+    go-md2man \
+    conntrack \
+    rsync \
+    criu \
+    runc \
+    conmon \
+    cri-tools \
+    tree
 
-# Install Kubernetes packages if required
-if [ "$INSTALL_K8S" = "true" ]; then
-    sudo apt-get install -y kubectl="$KUBERNETES_VERSION" kubeadm="$KUBERNETES_VERSION" cri-o-runc
-fi
-
-# Remove any existing Go installation
+# Install Go
+GO_TARBALL_PATH="/vagrant/go-tarball/go1.23.2.linux-arm64.tar.gz"
 sudo rm -rf /usr/local/go
+sudo tar -C /usr/local -xzf "$GO_TARBALL_PATH"
+export PATH="/usr/local/go/bin:$PATH"
 
-# Extract the Go tarball into /usr/local
-sudo tar -C /usr/local -xzf /vm/go-tarball/go1.23.2.linux-arm64.tar.gz
-
-# Set permissions for the Go directory
-sudo chown -R root:root /usr/local/go
-sudo chmod -R a+rX /usr/local/go
-
-# Update PATH for the current session
-export PATH=$PATH:/usr/local/go/bin
-
-# Persist the PATH update for the vagrant user
-echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+# Add Go path to .bashrc for persistence
+echo "export PATH=/usr/local/go/bin:\$PATH" | sudo tee -a /home/vagrant/.bashrc
 
 # Verify Go installation
 go version
 
-# Install additional dependencies
-sudo apt-get update
-sudo apt-get install -y cri-tools
+# Install Go gRPC plugins
+export PATH="$PATH:$(go env GOPATH)/bin"
+go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.30.0
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
 
-# Install conmon
-git clone https://github.com/containers/conmon
-cd conmon
+# Create the CNI plugin directory if it does not exist
+sudo mkdir -p /opt/cni/bin
+
+# Install CNI plugins
+cd /opt/cni/bin
+sudo curl -L -O https://github.com/containernetworking/plugins/releases/download/v1.3.0/cni-plugins-linux-arm64-v1.3.0.tgz
+sudo tar -xzvf cni-plugins-linux-arm64-v1.3.0.tgz
+
+# Install CNI configuration
+sudo mkdir -p /etc/cni/net.d
+cat <<EOF | sudo tee /etc/cni/net.d/10-bridge.conf
+{
+  "cniVersion": "0.3.1",
+  "name": "bridge",
+  "type": "bridge",
+  "bridge": "cni0",
+  "isGateway": true,
+  "ipMasq": true,
+  "ipam": {
+    "type": "host-local",
+    "ranges": [
+      [{"subnet": "10.244.0.0/16"}]
+    ],
+    "routes": [{"dst": "0.0.0.0/0"}]
+  }
+}
+EOF
+
+# Define policy for image pulling
+sudo mkdir -p /etc/containers
+cat <<EOF | sudo tee /etc/containers/policy.json
+{
+  "default": [
+    {
+      "type": "insecureAcceptAnything"
+    }
+  ]
+}
+EOF
+
+# Define containers registries configuration
+cat <<EOF | sudo tee /etc/containers/registries.conf
+unqualified-search-registries = ["docker.io"]
+EOF
+
+# Build and install CRI-O from local repository
+cd "/home/vagrant/cri-o"
 make
 sudo make install
-cd ..
-
-# Build and install CRI-O from source
-cd /vm/checkpoint/cri-o
-go mod tidy
-go mod vendor
-make
-if [ $? -ne 0 ]; then
-    echo "Error during 'make' for CRI-O. Exiting."
-    exit 1
-fi
-
-sudo make install
-if [ $? -ne 0 ]; then
-    echo "Error during 'make install' for CRI-O. Exiting."
-    exit 1
-fi
-cd ..
 
 # Configure CRI-O
-sudo tee /etc/crio/crio.conf > /dev/null <<EOF
-[crio.runtime]
-default_runtime = "runc"
-enable_criu_support = true
-drop_infra_ctr = false
+sudo mkdir -p /etc/crio
+sudo crio config | sudo tee /etc/crio/crio.conf
+
+# Explicitly set runc as the default runtime in crio.conf
+sudo sed -i '/\[crio.runtime\]/a\default_runtime = "runc"' /etc/crio/crio.conf
+
+# Remove the crun runtime configuration if present
+sudo sed -i '/\[crio.runtime.runtimes.crun\]/,+3d' /etc/crio/crio.conf
+
+# Add runc runtime configuration to crio.conf, if not already present
+sudo tee -a /etc/crio/crio.conf <<EOL
+
 [crio.runtime.runtimes.runc]
 runtime_path = "/usr/sbin/runc"
 runtime_type = "oci"
-[crio.network]
-network_dir = "/etc/cni/net.d/"
-plugin_dirs = [
-    "/opt/cni/bin/"
-]
-EOF
+runtime_root = "/run/runc"
+EOL
 
-# Enable and start etcd for Calico
-sudo systemctl enable etcd
-sudo systemctl restart etcd
-
-# Install Calico CNI plugins
-CNI_VERSION="v1.1.1"
-curl -LO https://github.com/containernetworking/plugins/releases/download/$CNI_VERSION/cni-plugins-linux-arm64-$CNI_VERSION.tgz
-sudo mkdir -p /opt/cni/bin
-sudo tar -C /opt/cni/bin -xzf cni-plugins-linux-arm64-$CNI_VERSION.tgz
-
-# Install Calicoctl
-curl -L -o calicoctl https://github.com/projectcalico/calico/releases/download/v3.28.2/calicoctl-linux-arm64
-chmod +x calicoctl
-sudo mv calicoctl /usr/local/bin/
-
-# Configure Calicoctl to use etcd
-sudo mkdir -p /etc/calico
-sudo tee /etc/calico/calicoctl.cfg > /dev/null <<EOF
-apiVersion: projectcalico.org/v3
-kind: CalicoAPIConfig
-metadata:
-spec:
-  datastoreType: "etcdv3"
-  etcdEndpoints: "http://127.0.0.1:2379"
-EOF
-echo 'export CALICOCTL_CONFIG=/etc/calico/calicoctl.cfg' | sudo tee -a ~/.bashrc
-source ~/.bashrc
+# Enable CRIU support in CRI-O
+sudo sed -i 's/^# enable_criu_support = false/enable_criu_support = true/' /etc/crio/crio.conf
 
 # Enable and start CRI-O service
 sudo systemctl daemon-reload
 sudo systemctl enable --now crio
 
-echo "Setup completed. Kubernetes installation status: $INSTALL_K8S"
+# Adjust socket permissions
+sudo groupadd -f crio
+sudo usermod -aG crio "$USER"

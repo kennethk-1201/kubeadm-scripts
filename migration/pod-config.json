@@ -1,9 +1,0 @@
-{
-  "metadata": {
-    "name": "nginx-pod",
-    "namespace": "default",
-    "uid": "unique-id-12345"
-  },
-  "log_directory": "/var/log/pods",
-  "linux": {}
-}
