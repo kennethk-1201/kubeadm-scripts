@@ -12,11 +12,11 @@ Vagrant.configure("2") do |config|
     end
 
     # Sync necessary folders
-    node.vm.synced_folder "../cri-o", "/home/vagrant/cri-o", type: "rsync"
-    node.vm.synced_folder "../cri-api", "/home/vagrant/cri-api", type: "rsync"
-    node.vm.synced_folder "setup", "/vagrant/setup"
-    node.vm.synced_folder "go-tarball", "/vagrant/go-tarball", create: true
-    node.vm.synced_folder "migration", "/home/vagrant/migration", type: "rsync"
+    node.vm.synced_folder "../cri-o", "/home/vagrant/cri-o", type: "rsync", rsync_auto: true
+    node.vm.synced_folder "../cri-api", "/home/vagrant/cri-api", type: "rsync", rsync_auto: true
+    node.vm.synced_folder "setup", "/vagrant/setup", rsync_auto: true
+    node.vm.synced_folder "go-tarball", "/vagrant/go-tarball", create: true, rsync_auto: true
+    node.vm.synced_folder "migration", "/home/vagrant/migration", type: "rsync", rsync_auto: true
 
     # Provision script
     node.vm.provision "shell", path: "setup/common.sh"
@@ -33,11 +33,11 @@ Vagrant.configure("2") do |config|
     end
 
     # Sync necessary folders
-    node.vm.synced_folder "../cri-o", "/home/vagrant/cri-o", type: "rsync"
-    node.vm.synced_folder "../cri-api", "/home/vagrant/cri-api", type: "rsync"
-    node.vm.synced_folder "setup", "/vagrant/setup"
-    node.vm.synced_folder "go-tarball", "/vagrant/go-tarball", create: true
-    node.vm.synced_folder "migration", "/home/vagrant/migration", type: "rsync"
+    node.vm.synced_folder "../cri-o", "/home/vagrant/cri-o", type: "rsync", rsync_auto: true
+    node.vm.synced_folder "../cri-api", "/home/vagrant/cri-api", type: "rsync", rsync_auto: true
+    node.vm.synced_folder "setup", "/vagrant/setup", rsync_auto: true
+    node.vm.synced_folder "go-tarball", "/vagrant/go-tarball", create: true, rsync_auto: true
+    node.vm.synced_folder "migration", "/home/vagrant/migration", type: "rsync", rsync_auto: true
 
     # Provision script
     node.vm.provision "shell", path: "setup/common.sh"

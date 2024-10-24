@@ -129,6 +129,11 @@ EOL
 # Enable CRIU support in CRI-O
 sudo sed -i 's/^# enable_criu_support = false/enable_criu_support = true/' /etc/crio/crio.conf
 
+# Enable the freezer cgroup controller (for cgroups v2)
+if [ -f /sys/fs/cgroup/cgroup.controllers ]; then
+  echo "+freezer" | sudo tee /sys/fs/cgroup/cgroup.subtree_control
+fi
+
 # Enable and start CRI-O service
 sudo systemctl daemon-reload
 sudo systemctl enable --now crio

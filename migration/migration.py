@@ -1,134 +1,118 @@
 import grpc
-import sys
 import os
 import json
+import subprocess
 import shutil
-
-# Import the generated classes
+from google.protobuf.json_format import MessageToDict
 import runtime.v1.api_pb2 as api_pb2
 import runtime.v1.api_pb2_grpc as api_pb2_grpc
 
-# Define the gRPC server address (Unix socket)
 GRPC_SERVER_ADDRESS = 'unix:///var/run/crio/crio.sock'
+CHECKPOINT_DIR = '/tmp/pod_checkpoint'
+REMOTE_NODE = '10.0.0.11'
+REMOTE_CHECKPOINT_DIR = '/tmp/pod_checkpoint'
 
-def run_pod_migration():
-    # Establish a channel to the gRPC server over Unix socket
-    channel = grpc.insecure_channel(GRPC_SERVER_ADDRESS)
-    # Create stubs (clients) for RuntimeService and ImageService
-    runtime_stub = api_pb2_grpc.RuntimeServiceStub(channel)
 
-    try:
-        # Step 1: List all pods and select the one to migrate
-        print("Listing all pods...")
-        pods_response = runtime_stub.ListPodSandbox(api_pb2.ListPodSandboxRequest())
-        pods = pods_response.items
+class PodMigration:
+    def __init__(self):
+        self.channel = grpc.insecure_channel(GRPC_SERVER_ADDRESS)
+        self.runtime_stub = api_pb2_grpc.RuntimeServiceStub(self.channel)
 
-        if not pods:
-            print("No pods found to migrate.")
-            return
-
-        # For simplicity, select the first running pod in the list
-        pod_to_migrate = None
-        for pod in pods:
+    def select_pod(self):
+        """Select the first running pod for migration."""
+        pods_response = self.runtime_stub.ListPodSandbox(api_pb2.ListPodSandboxRequest())
+        for pod in pods_response.items:
             if pod.state == api_pb2.PodSandboxStateValue(state=api_pb2.SANDBOX_READY).state:
-                pod_to_migrate = pod
-                break
+                print(f"Selected running pod: {pod.metadata.name}")
+                return pod
+        print("No running pods found to migrate.")
+        return None
 
-        if not pod_to_migrate:
-            print("No running pods found to migrate.")
-            return
-
-        pod_id = pod_to_migrate.id
-        pod_metadata = pod_to_migrate.metadata
-        print(f"Selected Pod ID for migration: {pod_id}")
-        print(f"Pod Name: {pod_metadata.name}, Namespace: {pod_metadata.namespace}")
-
-        # Step 2: Get pod status
-        pod_status_response = runtime_stub.PodSandboxStatus(
-            api_pb2.PodSandboxStatusRequest(pod_sandbox_id=pod_id)
+    def prepare_checkpoint(self, pod_id):
+        """Checkpoint containers in the specified pod."""
+        os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+        containers_response = self.runtime_stub.ListContainers(
+            api_pb2.ListContainersRequest(filter=api_pb2.ContainerFilter(pod_sandbox_id=pod_id))
         )
-        pod_status = pod_status_response.status
-
-        # Step 3: List containers in the pod
-        print("Listing containers in the pod...")
-        containers_response = runtime_stub.ListContainers(
-            api_pb2.ListContainersRequest(
-                filter=api_pb2.ContainerFilter(pod_sandbox_id=pod_id)
-            )
-        )
-        containers = containers_response.containers
-        if not containers:
+        container_ids = [c.id for c in containers_response.containers]
+        if not container_ids:
             print("No containers found in the pod.")
+            return []
+
+        for container_id in container_ids:
+            checkpoint_path = os.path.join(CHECKPOINT_DIR, f'{container_id}.tar')
+            request = api_pb2.CheckpointContainerRequest(container_id=container_id, location=checkpoint_path)
+            self.runtime_stub.CheckpointContainer(request)
+            print(f"Checkpointed container {container_id} to {checkpoint_path}")
+
+        # Save pod status and container statuses
+        pod_status = self.runtime_stub.PodSandboxStatus(
+            api_pb2.PodSandboxStatusRequest(pod_sandbox_id=pod_id)
+        ).status
+        self._save_json(MessageToDict(pod_status), os.path.join(CHECKPOINT_DIR, 'pod_status.json'))
+
+        for container_id in container_ids:
+            # Set verbose=True to get the full container specification
+            container_status_response = self.runtime_stub.ContainerStatus(
+                api_pb2.ContainerStatusRequest(container_id=container_id, verbose=True)
+            )
+            container_status_dict = MessageToDict(container_status_response.status)
+
+            # Convert the 'info' map to a regular dictionary
+            container_info_dict = {}
+            for key, value in container_status_response.info.items():
+                container_info_dict[key] = value
+
+            # Include 'info' in the container status dictionary
+            container_status_dict['info'] = container_info_dict
+
+            self._save_json(container_status_dict, os.path.join(CHECKPOINT_DIR, f'{container_id}_status.json'))
+        return container_ids
+
+    def transfer_checkpoint(self):
+        """Transfer the checkpoint data to the remote node."""
+        subprocess.run(['scp', '-r', CHECKPOINT_DIR, f'vagrant@{REMOTE_NODE}:{REMOTE_CHECKPOINT_DIR}'], check=True)
+        print("Checkpoint data transferred to the destination node.")
+
+    def cleanup(self):
+        """Remove the checkpoint directory."""
+        shutil.rmtree(CHECKPOINT_DIR, ignore_errors=True)
+        print(f"Cleaned up checkpoint directory: {CHECKPOINT_DIR}")
+
+    def stop_and_remove_pod(self, pod_id):
+        """Stop and remove the specified pod."""
+        self.runtime_stub.StopPodSandbox(api_pb2.StopPodSandboxRequest(pod_sandbox_id=pod_id))
+        self.runtime_stub.RemovePodSandbox(api_pb2.RemovePodSandboxRequest(pod_sandbox_id=pod_id))
+        print("Pod stopped and removed from the source node.")
+
+    def _save_json(self, data, file_path):
+        """Save data to a JSON file."""
+        with open(file_path, 'w') as f:
+            json.dump(data, f)
+        print(f"Saved data to {file_path}")
+
+    def migrate(self):
+        """Run the pod migration process."""
+        pod = self.select_pod()
+        if not pod:
             return
 
-        container_ids = [container.id for container in containers]
-        print(f"Container IDs in the pod: {container_ids}")
+        pod_id = pod.id
+        container_ids = self.prepare_checkpoint(pod_id)
+        if not container_ids:
+            return
 
-        # Step 4: Checkpoint each container
-        checkpoint_dir = '/tmp/pod_checkpoint'
-        os.makedirs(checkpoint_dir, exist_ok=True)
+        self.transfer_checkpoint()
+        self.stop_and_remove_pod(pod_id)
+        self.cleanup()
+        print("Migration process completed.")
 
-        print("Checkpointing containers...")
-        for container_id in container_ids:
-            checkpoint_path = os.path.join(checkpoint_dir, f'{container_id}.tar')
-            checkpoint_request = api_pb2.CheckpointContainerRequest(
-                container_id=container_id,
-                location=checkpoint_path,
-                timeout=0  # Use default timeout
-            )
-            runtime_stub.CheckpointContainer(checkpoint_request)
-            print(f"Container {container_id} checkpointed to {checkpoint_path}")
-
-        # Step 5: Save pod sandbox status
-        pod_status_path = os.path.join(checkpoint_dir, 'pod_status.json')
-        with open(pod_status_path, 'w') as f:
-            json.dump(MessageToDict(pod_status), f)
-        print(f"Pod sandbox status saved to {pod_status_path}")
-
-        # Step 6: Save container statuses
-        for container_id in container_ids:
-            container_status_response = runtime_stub.ContainerStatus(
-                api_pb2.ContainerStatusRequest(container_id=container_id)
-            )
-            container_status = container_status_response.status
-            container_status_path = os.path.join(
-                checkpoint_dir, f'{container_id}_status.json'
-            )
-            with open(container_status_path, 'w') as f:
-                json.dump(MessageToDict(container_status), f)
-            print(f"Container {container_id} status saved to {container_status_path}")
-
-        # Step 7: Transfer checkpoint data to destination node
-        destination_node = '10.0.0.11'
-        remote_checkpoint_dir = '/tmp/pod_checkpoint'
-        transfer_cmd = [
-            'scp', '-r', checkpoint_dir,
-            f'vagrant@{destination_node}:{remote_checkpoint_dir}'
-        ]
-        print("Transferring checkpoint data to destination node...")
-        subprocess.run(transfer_cmd, check=True)
-        print("Checkpoint data transferred.")
-
-        # Step 8: Remove the pod from the source node
-        print("Stopping the pod on the source node...")
-        runtime_stub.StopPodSandbox(
-            api_pb2.StopPodSandboxRequest(pod_sandbox_id=pod_id)
-        )
-        print("Removing the pod from the source node...")
-        runtime_stub.RemovePodSandbox(
-            api_pb2.RemovePodSandboxRequest(pod_sandbox_id=pod_id)
-        )
-        print("Pod removed from the source node.")
-
-        print("Migration process completed on the source node.")
-
-    except grpc.RpcError as e:
-        print(f"gRPC error: {e.code()} - {e.details()}")
-
-    except Exception as e:
-        print(f"Error: {e}")
 
 if __name__ == "__main__":
-    from google.protobuf.json_format import MessageToDict
-    import subprocess
-    run_pod_migration()
+    try:
+        migration = PodMigration()
+        migration.migrate()
+    except grpc.RpcError as e:
+        print(f"gRPC error: {e.code()} - {e.details()}")
+    except Exception as e:
+        print(f"Error: {e}")
