@@ -24,6 +24,15 @@ def restore_pod(checkpoint_dir):
 
         # Set the log_directory in PodSandboxConfig
         log_directory = pod_status_dict.get('log_directory', '/var/log/pods')
+        sandbox_security_context = api_pb2.LinuxSandboxSecurityContext(
+            namespace_options=api_pb2.NamespaceOption(
+                network=api_pb2.NamespaceMode.POD,
+                pid=api_pb2.NamespaceMode.POD,
+                ipc=api_pb2.NamespaceMode.POD,
+            ),
+            seccomp_profile_path='unconfined'
+        )
+
         pod_sandbox_config = api_pb2.PodSandboxConfig(
             metadata=api_pb2.PodSandboxMetadata(
                 name=new_pod_name,
@@ -34,7 +43,7 @@ def restore_pod(checkpoint_dir):
             log_directory=log_directory,
             labels=pod_status_dict.get('labels', {}),
             annotations=pod_status_dict.get('annotations', {}),
-            linux=api_pb2.LinuxPodSandboxConfig()
+            linux=api_pb2.LinuxPodSandboxConfig(security_context=sandbox_security_context)
         )
 
         # Ensure the log_directory exists
@@ -138,21 +147,15 @@ def restore_pod(checkpoint_dir):
                             pid=api_pb2.NamespaceMode.POD,
                             ipc=api_pb2.NamespaceMode.POD,
                         ),
-                    )
+                    ),
                 ),
                 labels=container_status_dict.get('labels', {}),
                 annotations=container_status_dict.get('annotations', {}),
                 log_path=log_path  # Now a relative path
             )
 
-            # Update labels and annotations for restoration
-            container_config.labels['restored'] = 'true'
-            container_config.annotations['io.cri-o.Restore'] = 'true'
-            container_config.annotations['io.cri-o.Checkpoint'] = checkpoint_path
-
-            print(f"Container annotations: {container_config.annotations}")
-
             try:
+                # Create the container
                 create_container_response = runtime_stub.CreateContainer(
                     api_pb2.CreateContainerRequest(
                         pod_sandbox_id=new_pod_id,

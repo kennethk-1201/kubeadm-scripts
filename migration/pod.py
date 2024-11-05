@@ -44,11 +44,13 @@ class PodSandboxManager:
     def create_container(self, pod_sandbox_id, image_name, pod_config, stateful=False):
         self.pull_image(image_name)
 
-        # Command to run a counter process
-        command = [
-            '/bin/sh', '-c',
-            'counter=0; while true; do echo "Counter: $counter"; counter=$((counter+1)); sleep 1; done'
-        ]
+        if stateful:
+            command = [
+                '/bin/sh', '-c',
+                'counter=0; while true; do echo "Counter: $counter"; counter=$((counter+1)); sleep 1; done'
+            ]
+        else:
+            command = ['/bin/sh', '-c', 'sleep infinity']
 
         container_config = api_pb2.ContainerConfig(
             metadata=api_pb2.ContainerMetadata(name='mycontainer', attempt=0),
@@ -69,19 +71,23 @@ class PodSandboxManager:
             config=container_config,
             sandbox_config=pod_config
         )
+
+        # Send the CreateContainer request via gRPC
         response = self.runtime_stub.CreateContainer(request)
         print(f"Created container with ID: {response.container_id}")
         return response.container_id
 
+
+
     def manage_container(self, action, container_id, timeout=10):
         actions = {
-            'start': api_pb2.StartContainerRequest,
+            'start': lambda: api_pb2.StartContainerRequest(container_id=container_id),
             'stop': lambda: api_pb2.StopContainerRequest(container_id=container_id, timeout=timeout),
-            'remove': api_pb2.RemoveContainerRequest
+            'remove': lambda: api_pb2.RemoveContainerRequest(container_id=container_id)
         }
         if action not in actions:
             raise ValueError("Invalid action. Choose 'start', 'stop', or 'remove'.")
-        request = actions[action](container_id=container_id)
+        request = actions[action]()  # All actions are now callable lambdas
         getattr(self.runtime_stub, f"{action.capitalize()}Container")(request)
         print(f"{action.capitalize()}ed container with ID: {container_id}")
 
@@ -94,7 +100,7 @@ class PodSandboxManager:
             raise ValueError("Invalid action. Choose 'stop' or 'remove'.")
         request = actions[action](pod_sandbox_id=pod_sandbox_id)
         getattr(self.runtime_stub, f"{action.capitalize()}PodSandbox")(request)
-        print(f"{action.capitalize()}ped pod sandbox with ID: {pod_sandbox_id}")
+        print(f"{action.capitalize()}ed pod sandbox with ID: {pod_sandbox_id}")
 
     def pull_image(self, image_name):
         request = api_pb2.PullImageRequest(image=api_pb2.ImageSpec(image=image_name))
@@ -123,24 +129,25 @@ def main():
 
     try:
         if len(sys.argv) < 2:
-            print("Usage: python3 script.py [start-stateful|teardown]")
+            print("Usage: python3 script.py [start-stateful|start-stateless|teardown]")
             sys.exit(1)
         action = sys.argv[1]
 
-        if action == 'start-stateful':
-            name = 'stateful-pod'
+        if action in ['start-stateful', 'start-stateless']:
+            stateful = action == 'start-stateful'
+            name = 'stateful-pod' if stateful else 'stateless-pod'
             namespace = 'default'
             uid = f"{name}-uid"
-            annotations = {'stateful': 'true'}
+            annotations = {'stateful': 'true'} if stateful else {'stateful': 'false'}
 
-            pod_config = manager.get_pod_config(name, namespace, uid, stateful=True, annotations=annotations)
+            pod_config = manager.get_pod_config(name, namespace, uid, stateful=stateful, annotations=annotations)
             pod_id = manager.create_pod_sandbox(pod_config)
             container_id = manager.create_container(
-                pod_id, 'docker.io/library/busybox:latest', pod_config, stateful=True
+                pod_id, 'docker.io/library/busybox:latest', pod_config, stateful=stateful
             )
             manager.manage_container('start', container_id)
             save_ids(pod_id, container_id)
-            print(f"Started stateful pod and container. Pod ID: {pod_id}, Container ID: {container_id}")
+            print(f"Started {'stateful' if stateful else 'stateless'} pod and container. Pod ID: {pod_id}, Container ID: {container_id}")
 
         elif action == 'teardown':
             ids = load_ids()
@@ -152,7 +159,7 @@ def main():
             print("Pod and container torn down successfully.")
 
         else:
-            print("Invalid action. Use 'start-stateful' or 'teardown'.")
+            print("Invalid action. Use 'start-stateful', 'start-stateless', or 'teardown'.")
 
     except grpc.RpcError as e:
         print(f"gRPC error: {e.code()} - {e.details()}")

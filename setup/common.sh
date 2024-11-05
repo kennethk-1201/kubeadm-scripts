@@ -64,6 +64,7 @@ sudo mkdir -p /opt/cni/bin
 cd /opt/cni/bin
 sudo curl -L -O https://github.com/containernetworking/plugins/releases/download/v1.3.0/cni-plugins-linux-arm64-v1.3.0.tgz
 sudo tar -xzvf cni-plugins-linux-arm64-v1.3.0.tgz
+rm cni-plugins-linux-arm64-v1.3.0.tgz
 
 # Install CNI configuration
 sudo mkdir -p /etc/cni/net.d
@@ -131,7 +132,16 @@ sudo sed -i 's/^# enable_criu_support = false/enable_criu_support = true/' /etc/
 
 # Enable the freezer cgroup controller (for cgroups v2)
 if [ -f /sys/fs/cgroup/cgroup.controllers ]; then
-  echo "+freezer" | sudo tee /sys/fs/cgroup/cgroup.subtree_control
+  if grep -q "freezer" /sys/fs/cgroup/cgroup.controllers; then
+    echo "+freezer" | sudo tee /sys/fs/cgroup/cgroup.subtree_control
+  else
+    echo "Freezer controller not found. Enabling it in kernel parameters."
+    sudo sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/&systemd.unified_cgroup_hierarchy=1 /' /etc/default/grub
+    sudo update-grub
+    echo "Please reboot the system to apply the changes."
+  fi
+else
+  echo "Cgroup v2 not found or improperly configured."
 fi
 
 # Enable and start CRI-O service

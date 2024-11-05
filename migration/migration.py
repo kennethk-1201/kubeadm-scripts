@@ -58,6 +58,9 @@ class PodMigration:
             )
             container_status_dict = MessageToDict(container_status_response.status)
 
+            # Replace the 'image' key with the checkpoint path
+            container_status_dict['image'] = {'image': checkpoint_path}
+
             # Convert the 'info' map to a regular dictionary
             container_info_dict = {}
             for key, value in container_status_response.info.items():
@@ -68,6 +71,7 @@ class PodMigration:
 
             self._save_json(container_status_dict, os.path.join(CHECKPOINT_DIR, f'{container_id}_status.json'))
         return container_ids
+
 
     def transfer_checkpoint(self):
         """Transfer the checkpoint data to the remote node."""
