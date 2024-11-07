@@ -1,3 +1,5 @@
+import uuid
+
 import grpc
 import sys
 import os
@@ -87,8 +89,13 @@ class PodSandboxManager:
             privileged=False
         )
 
+        unique_suffix = uuid.uuid4().hex[:6]
+        container_name = f"container_{unique_suffix}"
+        log_path = f"container_{unique_suffix}.log"
+        os.makedirs(log_path, exist_ok=True)
+
         metadata = api_pb2.ContainerMetadata(
-            name='mycontainer',
+            name=container_name,
             attempt=0
         )
 
@@ -97,7 +104,7 @@ class PodSandboxManager:
             image=api_pb2.ImageSpec(image=image_name),
             command=command,
             labels=labels,
-            log_path='mycontainer.log',
+            log_path=log_path,
             linux=api_pb2.LinuxContainerConfig(security_context=security_context)
         )
 
