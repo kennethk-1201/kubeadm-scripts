@@ -4,36 +4,49 @@ Vagrant.configure("2") do |config|
       echo "10.0.0.10  master-node" >> /etc/hosts
       echo "10.0.0.11  worker-node01" >> /etc/hosts
       echo "10.0.0.12  worker-node02" >> /etc/hosts
+      echo "10.0.0.13  test-node" >> /etc/hosts
   SHELL
-  
-  
-  config.vm.define "master" do |master|
-    master.vm.box = "bento/ubuntu-22.04"
-    master.vm.hostname = "master-node"
-    master.vm.network "private_network", ip: "10.0.0.10"
-    master.vm.provider "virtualbox" do |vb|
+
+  config.vm.define "test" do |test|
+    test.vm.box = "bento/ubuntu-22.04"
+    test.vm.hostname = "test-node"
+    test.vm.network "private_network", ip: "10.0.0.10"
+    test.vm.provider "virtualbox" do |vb|
         vb.memory = 4048
         vb.cpus = 2
     end
-    master.vm.network "forwarded_port", guest: 6443, host: 6443, protocol: "tcp"
-    master.vm.synced_folder "../.kube", "/home/vagrant/.kube"
-    master.vm.provision "common-setup", type: "shell", :path => "scripts/common.sh", env: {"NODE_IP" => "10.0.0.10"}
-    master.vm.provision "master-setup", type: "shell", :path => "scripts/master.sh"
-  end
-
-  (1..2).each do |i|
-
-  config.vm.define "node0#{i}" do |node|
-    node.vm.box = "bento/ubuntu-22.04"
-    node.vm.hostname = "worker-node0#{i}"
-    node.vm.network "private_network", ip: "10.0.0.1#{i}"
-    node.vm.provider "virtualbox" do |vb|
-        vb.memory = 2048
-        vb.cpus = 1
-    end
-    node.vm.provision "common-setup", type: "shell", :path => "scripts/common.sh", env: {"NODE_IP" => "10.0.0.1#{i}"}
-    node.vm.provision "register-node", type: "shell", :path => "scripts/register.sh"
+    test.vm.network "forwarded_port", guest: 6443, host: 6443, protocol: "tcp"
+    test.vm.provision "test-setup", type: "shell", :path => "scripts/test.sh"
   end
   
-  end
+
+  #config.vm.define "master" do |master|
+  #  master.vm.box = "bento/ubuntu-22.04"
+  #  master.vm.hostname = "master-node"
+  #  master.vm.network "private_network", ip: "10.0.0.10"
+  #  master.vm.provider "virtualbox" do |vb|
+  #      vb.memory = 4048
+  #      vb.cpus = 2
+  #  end
+  #  master.vm.network "forwarded_port", guest: 6443, host: 6443, protocol: "tcp"
+  #  master.vm.synced_folder "../.kube", "/home/vagrant/.kube"
+  #  master.vm.provision "common-setup", type: "shell", :path => "scripts/common.sh", env: {"NODE_IP" => "10.0.0.10"}
+  #  master.vm.provision "master-setup", type: "shell", :path => "scripts/master.sh"
+  #end
+#
+  #(1..2).each do |i|
+#
+  #config.vm.define "node0#{i}" do |node|
+  #  node.vm.box = "bento/ubuntu-22.04"
+  #  node.vm.hostname = "worker-node0#{i}"
+  #  node.vm.network "private_network", ip: "10.0.0.1#{i}"
+  #  node.vm.provider "virtualbox" do |vb|
+  #      vb.memory = 2048
+  #      vb.cpus = 1
+  #  end
+  #  node.vm.provision "common-setup", type: "shell", :path => "scripts/common.sh", env: {"NODE_IP" => "10.0.0.1#{i}"}
+  #  node.vm.provision "register-node", type: "shell", :path => "scripts/register.sh"
+  #end
+
+  #end
 end
