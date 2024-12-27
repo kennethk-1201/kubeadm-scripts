@@ -1,15 +1,13 @@
 set -euxo pipefail
 
 # Variables
-PATH="$PATH:/home/vagrant/kubernetes/third_party/etcd"
-OS="xUbuntu_22.04"
-VERSION="1.30"
-CONFIG_FILE="/etc/crio/crio.conf.d/10-crio.conf"
-KUBERNETES_VERSION="1.31.0-1.1"
-export PATH="$GOPATH/src/k8s.io/kubernetes/third_party/etcd:${PATH}"
+export PATH="$PATH:/home/vagrant/kubernetes/third_party/etcd"
+export OS="xUbuntu_22.04"
+export VERSION="1.30"
+export CONFIG_FILE="/etc/crio/crio.conf.d/10-crio.conf"
+export KUBERNETES_VERSION="1.31.0-1.1"
+export ALLOW_PRIVILEGED=true
 
-# Clone k8s
-git clone https://github.com/kennethk-1201/kubernetes.git
 
 # Reference: https://github.com/kubernetes/community/blob/master/contributors/devel/running-locally.md
 
@@ -17,6 +15,10 @@ git clone https://github.com/kennethk-1201/kubernetes.git
 sudo add-apt-repository ppa:longsleep/golang-backports -y
 sudo apt update
 sudo apt install golang-go -y
+export PATH="$GOPATH/src/k8s.io/kubernetes/third_party/etcd:${PATH}"
+
+# Clone k8s
+git clone https://github.com/kennethk-1201/kubernetes.git
 
 # Install CFSSL
 go install github.com/cloudflare/cfssl/cmd/...@latest
@@ -25,7 +27,6 @@ go install github.com/cloudflare/cfssl/cmd/...@latest
 cd kubernetes
 sudo ./hack/install-etcd.sh
 
-disable swap
 sudo swapoff -a
 
 # keeps the swap off during reboot
@@ -66,7 +67,16 @@ echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.i
 
 # Install dependencies
 sudo apt-get update -y
-sudo apt-get install cri-o runc software-properties-common jq apt-transport-https ca-certificates curl gpg criu build-essential -y
+sudo apt-get install cri-o runc software-properties-common jq apt-transport-https ca-certificates curl gpg build-essential -y
+sudo apt-get install pkg-config libprotobuf-dev libprotobuf-c-dev protobuf-c-compiler protobuf-compiler python3-protobuf libnet1 libnet1-dev libnl-3-dev libcap-dev asciidoc xmlto python3-pip -y
+
+# Install latest CRIU
+git clone https://github.com/checkpoint-restore/criu.git
+cd criu
+sudo make SBINDIR=/usr/sbin install
+cd ..
+
+sudo setcap cap_checkpoint_restore+eip /usr/sbin/criu
 
 # Configure CRIO
 cat <<EOF | sudo tee /etc/crio/crio.conf
@@ -92,6 +102,7 @@ sudo apt-get install -y kubectl="$KUBERNETES_VERSION"
 
 # Run the command below to set up cluster
 # sudo ./hack/local-up-cluster.sh
+# kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 
 # If you want to restart, run this to avoid compiling the kubernetes components
 # sudo ./hack/local-up-cluster.sh -O

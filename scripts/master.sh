@@ -11,12 +11,16 @@ PUBLIC_IP_ACCESS="false"
 NODENAME=$(hostname -s)
 POD_CIDR="192.168.0.0/16"
 SERVICE_CIDR="172.16.0.0/16"
+CONTAINER_RUNTIME_ENDPOINT="unix:///var/run/crio/crio.sock"
+
+sudo mkdir /etc/kubernetes
 
 # Create the kubeadm-config.yaml configuration file
 cat <<EOF | sudo tee /etc/kubernetes/kubeadm-config.yaml
 # kubeadm-config.yaml
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
+serverTLSBootstrap: true
 featureGates:
   ContainerCheckpoint: true
 ---
