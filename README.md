@@ -8,7 +8,7 @@ This repository contains the scripts to set up a local Kubernetes cluster on mul
 3. After everything is setup, run `kubectl get csr` to view all the certificate signing requests from all the nodes.
 4. Run `kubectl certificate approve <csr-name>` to approve all the CSRs. This step is manual and is troublesome to automate.
 
-### Test the checkpointing feature
+### Test the existing kubelet checkpointing feature
 Create a pod via kubectl on the master
 ```
 sudo kubectl run webserver --image=nginx -n default
@@ -28,3 +28,19 @@ sudo curl -sk -X POST  "https://<worker-ip>:10250/checkpoint/default/webserver/w
 ```
 
 The checkpoint tar file should be stored in `/var/lib/kubelet/checkpoints/checkpoint-<pod>_<namespace>-<container>-<timestamp>.tar` inside the corresponding worker.
+
+### Test the pod restoration feature
+Create the original Pod:
+```
+kubectl apply -f manifests/original-pod.yaml
+```
+
+Restore the original Pod in a new node:
+```
+kubectl apply -f manifests/new-pod.yaml
+```
+
+View the logs of the new Pod to verify that it was restored properly:
+```
+kubectl logs demo-new
+```
