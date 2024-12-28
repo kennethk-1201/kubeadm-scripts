@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: demo-new
+  annotations:
+    kubernetes.io/source-pod: "demo-old"
+    kubernetes.io/source-namespace: "default" # Optional
+spec:
+  nodeName: worker-node01
+  containers:
+  - name: counter
+    image: kennethkiang/sample-python-restore:1.0
+    ports:
+    - containerPort: 82
+  - name: counter2
+    image: kennethkiang/sample-python-restore:1.0
+    ports:
+    - containerPort: 81
+  - name: sample-nginx
+    image: nginx:1.14.2
+    ports:
+    - containerPort: 80

@@ -7,5 +7,5 @@ roleRef:
   name: checkpoint-clusterrole
   apiGroup: "rbac.authorization.k8s.io"
 subjects:
-- kind: Group
-  name: system:nodes 
+  - kind: Group
+    name: system:nodes
