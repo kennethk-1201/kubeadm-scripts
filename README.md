@@ -5,6 +5,8 @@ This repository contains the scripts to set up a local Kubernetes cluster on mul
 ### Setup
 1. Install VirtualBox and Vagrant
 2. Setup the cluster by runnung `vagrant up` from the project root. If you want to tear down the cluster, run `vagrant destroy` (you'll be prompted confirm deletion of nodes).
+3. After everything is setup, run `kubectl get csr` to view all the certificate signing requests from all the nodes.
+4. Run `kubectl certificate approve <csr-name>` to approve all the CSRs. This step is manual and is troublesome to automate.
 
 ### Test the checkpointing feature
 Create a pod via kubectl on the master

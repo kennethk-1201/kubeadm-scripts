@@ -1,11 +1,9 @@
 #!/bin/bash
 #
 # Setup for Control Plane (Master) servers
-
 set -euxo pipefail
 
 # If you need public access to API server using the servers Public IP adress, change PUBLIC_IP_ACCESS to true.
-
 IPADDR="10.0.0.10"
 PUBLIC_IP_ACCESS="false"
 NODENAME=$(hostname -s)
@@ -52,14 +50,12 @@ nodeRegistration:
 ---
 EOF
 
-# Pull required images
-
+# Pull required images (api-server, scheduler, etcd and controller manager)
 sudo kubeadm config images pull
 
-# Initialize kubeadm based on PUBLIC_IP_ACCESS
-
+# Initialize K8s using kubeadm
 if [[ "$PUBLIC_IP_ACCESS" == "false" ]]; then
-    
+
     MASTER_PRIVATE_IP="10.0.0.10"
     sudo kubeadm init  --config=/etc/kubernetes/kubeadm-config.yaml --node-name "$NODENAME" --ignore-preflight-errors Swap
 
@@ -74,22 +70,24 @@ else
 fi
 
 # Configure kubeconfig
-
 mkdir -p "$HOME"/.kube
 sudo cp -i /etc/kubernetes/admin.conf "$HOME"/.kube/config
 sudo chown "$(id -u)":"$(id -g)" "$HOME"/.kube/config
 
-# Install Claico Network Plugin Network 
-
+# Install Calico Network Plugin Network
 kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 
 # Start metrics server
 kubectl apply -f https://raw.githubusercontent.com/techiescamp/kubeadm-scripts/main/manifests/metrics-server.yaml
 
-# Store registration command
+# Store registration command for worker nodes to use
 sudo kubeadm token create --print-join-command > /vagrant/setup.sh
 chmod 700 /vagrant/setup.sh
 
-# Update host
+# Update host to use kubectl
 sudo cp /etc/kubernetes/admin.conf .kube/config
-sudo chmod 777 .kube/config 
+sudo chmod 777 .kube/config
+
+# Create cluster permissions for checkpointing
+kubectl apply -f /vagrant/manifests/checkpointclusterrole.yaml
+kubectl apply -f /vagrant/manifests/checkpointrolebinding.yaml
