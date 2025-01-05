@@ -7,17 +7,17 @@ Vagrant.configure("2") do |config|
       echo "10.0.0.13  test-node" >> /etc/hosts
   SHELL
 
-#   config.vm.define "test" do |test|
-#     test.vm.box = "bento/ubuntu-22.04"
-#     test.vm.hostname = "test-node"
-#     test.vm.network "private_network", ip: "10.0.0.13"
-#     test.vm.provider "virtualbox" do |vb|
-#         vb.memory = 4048
-#         vb.cpus = 2
-#     end
-#     test.vm.network "forwarded_port", guest: 6443, host: 6443, protocol: "tcp"
-#     test.vm.provision "test-setup", type: "shell", :path => "scripts/test.sh"
-#   end
+  config.vm.define "test" do |test|
+    test.vm.box = "bento/ubuntu-22.04"
+    test.vm.hostname = "test-node"
+    test.vm.network "private_network", ip: "10.0.0.13"
+    test.vm.provider "virtualbox" do |vb|
+        vb.memory = 4048
+        vb.cpus = 2
+    end
+    test.vm.network "forwarded_port", guest: 6443, host: 6444, protocol: "tcp"
+    test.vm.provision "test-setup", type: "shell", :path => "scripts/test.sh"
+  end
   
 
   config.vm.define "master" do |master|

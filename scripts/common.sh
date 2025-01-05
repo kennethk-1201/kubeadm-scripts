@@ -4,8 +4,7 @@
 
 set -euxo pipefail
 
-# Kuernetes Variable Declaration
-
+# Kubernetes Variable Declaration
 ADVERTISE_ADDRESS="10.0.0.10"  # Replace with your actual IP address
 KUBERNETES_VERSION="1.31.0-1.1"
 CONFIG_FILE="/etc/crio/crio.conf.d/10-crio.conf"
@@ -60,33 +59,45 @@ sudo sed -i "/#\$nrconf{restart} = 'i';/s/.*/\$nrconf{restart} = 'a';/" /etc/nee
 # Install dependencies
 sudo apt-get update -y
 sudo apt-get install conntrack cri-o runc software-properties-common jq apt-transport-https ca-certificates curl gpg make build-essential -y
-
-# Install CRIU
-git clone https://github.com/checkpoint-restore/criu.git
-sudo apt-get update -y
 sudo apt-get install pkg-config libprotobuf-dev libprotobuf-c-dev protobuf-c-compiler protobuf-compiler python3-protobuf libnet1 libnet1-dev libnl-3-dev libcap-dev asciidoc xmlto python3-pip -y
-cd criu
-sudo make SBINDIR=/usr/sbin install
-cd ..
+
+# Build CRIU (required for 3.17 and above)
+if [ ! -f "/vagrant/criu" ]; then
+  git clone https://github.com/checkpoint-restore/criu.git
+  cd criu
+  sudo make SBINDIR=/usr/sbin install
+  sudo cp /usr/sbin/criu /vagrant/criu
+  cd ..
+else
+  # Save on compilation time if cache exists
+  sudo cp /vagrant/criu /usr/sbin/criu
+fi
 
 sudo setcap cap_checkpoint_restore+eip /usr/sbin/criu
 
-# Get keys to install kubectl and kubeadm.
+# Install kubectl for the CLI and kubeadm to run K8s
 sudo apt-get update -y
 sudo apt-get install -y kubectl="$KUBERNETES_VERSION" kubeadm="$KUBERNETES_VERSION"
 sudo apt-get update -y
 sudo apt-mark hold cri-o kubeadm kubectl
 
 # Build kubelet from source code
-git clone https://github.com/kennethk-1201/kubernetes.git
-cd kubernetes
-sudo git config --global --add safe.directory /home/vagrant/kubernetes
-sudo make clean
-sudo git tag v1.31.0-1.1
-sudo make WHAT=cmd/kubelet
-sudo cp _output/bin/kubelet /usr/bin/kubelet
-sudo cp _output/bin/kubelet /usr/local/bin/kubelet
-cd ..
+if [ ! -f "/vagrant/kubelet" ]; then
+  git clone https://github.com/kennethk-1201/kubernetes.git
+  cd kubernetes
+  sudo git config --global --add safe.directory /home/vagrant/kubernetes
+  sudo make clean
+  sudo git tag v1.31.0-1.1
+  sudo make WHAT=cmd/kubelet
+  sudo cp _output/bin/kubelet /usr/bin/kubelet
+  sudo cp _output/bin/kubelet /usr/local/bin/kubelet
+  sudo cp _output/bin/kubelet /vagrant/kubelet
+  cd ..
+else
+  # Save on compilation time if cache exists
+  sudo cp /vagrant/kubelet /usr/bin/kubelet
+  sudo cp /vagrant/kubelet /usr/local/bin/kubelet
+fi
 
 # Configure CRI-O to use runc and enable CRIU support
 cat <<EOF | sudo tee /etc/crio/crio.conf

@@ -15,7 +15,6 @@ export ALLOW_PRIVILEGED=true
 sudo add-apt-repository ppa:longsleep/golang-backports -y
 sudo apt update
 sudo apt install golang-go -y
-export PATH="$GOPATH/src/k8s.io/kubernetes/third_party/etcd:${PATH}"
 
 # Clone k8s
 git clone https://github.com/kennethk-1201/kubernetes.git
@@ -32,6 +31,9 @@ sudo swapoff -a
 # keeps the swap off during reboot
 (crontab -l 2>/dev/null; echo "@reboot /sbin/swapoff -a") | crontab - || true
 sudo apt-get update -y
+
+# prevent script interruption due to installs
+sudo sed -i "/#\$nrconf{restart} = 'i';/s/.*/\$nrconf{restart} = 'a';/" /etc/needrestart/needrestart.conf
 
 # Create the .conf file to load the modules at bootup
 cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
@@ -86,6 +88,34 @@ enable_criu_support = true
 drop_infra_ctr = false
 EOF
 
+# Put in config file
+cat > /etc/cni/net.d/10-calico.conflist <<EOF
+{
+  "cniVersion": "1.0.0",
+  "name": "crio",
+  "plugins": [
+    {
+      "type": "bridge",
+      "bridge": "cni0",
+      "isGateway": true,
+      "ipMasq": true,
+      "hairpinMode": true,
+      "ipam": {
+        "type": "host-local",
+        "routes": [
+            { "dst": "0.0.0.0/0" },
+            { "dst": "::/0" }
+        ],
+        "ranges": [
+            [{ "subnet": "10.85.0.0/16" }],
+            [{ "subnet": "1100:200::/24" }]
+        ]
+      }
+    }
+  ]
+}
+EOF
+
 # Update the default_runtime from "crun" to "runc"
 sudo sed -i 's/default_runtime = "crun"/default_runtime = "runc"/' "$CONFIG_FILE"
 # Add the enable_criu_support option under the [crio.runtime] section
@@ -101,10 +131,10 @@ export CONTAINER_RUNTIME_ENDPOINT="unix:///var/run/crio/crio.sock"
 sudo apt-get install -y kubectl="$KUBERNETES_VERSION"
 
 # Run the command below to set up cluster
-# sudo ./hack/local-up-cluster.sh
+# sudo ALLOW_PRIVILEGED="true" ./hack/local-up-cluster.sh
 # kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 
 # If you want to restart, run this to avoid compiling the kubernetes components
-# sudo ./hack/local-up-cluster.sh -O
+# sudo ./hack/local-up-cluster.sh
 
 # SSH Command: ssh vagrant@127.0.0.1 -p 2222 (password is vagrant)

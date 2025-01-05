@@ -1,0 +1,8 @@
+apiVersion: migration.k8s-checkpoint-controller/v1
+kind: PodMigration
+metadata:
+  name: migrate-demo-old
+spec:
+  podName: demo-new
+  nodeName: worker-node01
+  newPodName: demo-new-new
