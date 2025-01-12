@@ -3,8 +3,14 @@
 set -euxo pipefail
 
 # CRI-O packages
-echo "deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_$(lsb_release -rs)/ /" | sudo tee /etc/apt/sources.list.d/libcontainers.list > /dev/null
-curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_$(lsb_release -rs)/Release.key | sudo apt-key add -
+OS="xUbuntu_$(lsb_release -rs)"
+VERSION="1.28"
+echo "deb [signed-by=/etc/apt/keyrings/libcontainers-archive-keyring.gpg] https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /" | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+echo "deb [signed-by=/etc/apt/keyrings/libcontainers-crio-archive-keyring.gpg] https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/$VERSION/$OS/ /" | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable:cri-o:$VERSION.list
+
+sudo mkdir -p /etc/apt/keyrings
+curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/libcontainers-archive-keyring.gpg
+curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/$VERSION/$OS/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/libcontainers-crio-archive-keyring.gpg
 
 # Disable Byobu if installed
 sudo apt-get purge -y byobu || true
@@ -12,9 +18,17 @@ sudo apt-get purge -y byobu || true
 # Update package lists
 sudo apt-get update
 
+# Add Kubernetes repo
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
 # Install necessary packages
+sudo apt-get update
 sudo apt-get install -y \
     build-essential \
+    kubeadm \
+    kubectl \
+    kubelet \
     git \
     make \
     gcc \
@@ -39,6 +53,21 @@ sudo apt-get install -y \
     conmon \
     cri-tools \
     tree
+
+# Disable swap (required for Kubernetes)
+sudo swapoff -a
+sudo sed -i '/swap/d' /etc/fstab
+
+# Enable IP forwarding and bridge netfilter (persistent across reboots)
+cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-iptables = 1
+net.ipv4.ip_forward = 1
+EOF
+sudo sysctl --system
+
+# Load br_netfilter module
+sudo modprobe br_netfilter
+echo "br_netfilter" | sudo tee /etc/modules-load.d/k8s.conf
 
 # Install Go
 GO_TARBALL_PATH="/vagrant/go-tarball/go1.23.2.linux-arm64.tar.gz"
@@ -103,10 +132,15 @@ cat <<EOF | sudo tee /etc/containers/registries.conf
 unqualified-search-registries = ["docker.io"]
 EOF
 
-# Build and install CRI-O from local repository
+# Clone and build CRI-O if not already present
+if [ ! -d "/home/vagrant/cri-o" ]; then
+    cd "/home/vagrant"
+    DEBIAN_FRONTEND=noninteractive git clone https://github.com/cri-o/cri-o.git
+fi
+
 cd "/home/vagrant/cri-o"
-make
-sudo make install
+DEBIAN_FRONTEND=noninteractive make
+DEBIAN_FRONTEND=noninteractive sudo -E make install
 
 # Configure CRI-O
 sudo mkdir -p /etc/crio

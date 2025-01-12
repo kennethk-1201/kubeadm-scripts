@@ -1,45 +1,50 @@
-# Vagrantfile
-
 Vagrant.configure("2") do |config|
-  # Define the first node (node1)
-  config.vm.define "node1" do |node|
+  # Define the master node
+  config.vm.define "master" do |node|
     node.vm.box = "bento/ubuntu-22.04"
-    node.vm.hostname = "node1"
-    node.vm.network "private_network", ip: "10.0.0.10"
+    node.vm.hostname = "master"
+    node.vm.network "private_network", ip: "10.0.0.9"
     node.vm.provider "parallels" do |prl|
       prl.memory = 4096
       prl.cpus = 2
     end
 
     # Sync necessary folders
-    node.vm.synced_folder "../cri-o", "/home/vagrant/cri-o", type: "rsync", rsync_auto: true
-    node.vm.synced_folder "../cri-api", "/home/vagrant/cri-api", type: "rsync", rsync_auto: true
     node.vm.synced_folder "setup", "/vagrant/setup", rsync_auto: true
     node.vm.synced_folder "go-tarball", "/vagrant/go-tarball", create: true, rsync_auto: true
-    node.vm.synced_folder "migration", "/home/vagrant/migration", type: "rsync", rsync_auto: true
+    node.vm.synced_folder "sample-controller", "/home/vagrant/sample-controller", type: "rsync", rsync_auto: true
 
-    # Provision script
+    # Provision scripts
     node.vm.provision "shell", path: "setup/common.sh"
+    node.vm.provision "shell", path: "setup/master.sh"
   end
 
-  # Define the second node (node2)
-  config.vm.define "node2" do |node|
-    node.vm.box = "bento/ubuntu-22.04"
-    node.vm.hostname = "node2"
-    node.vm.network "private_network", ip: "10.0.0.11"
-    node.vm.provider "parallels" do |prl|
-      prl.memory = 4096
-      prl.cpus = 2
+  # Define worker nodes (node1 and node2)
+  (1..2).each do |i|
+    config.vm.define "node#{i}" do |node|
+      node.vm.box = "bento/ubuntu-22.04"
+      node.vm.hostname = "node#{i}"
+      node.vm.network "private_network", ip: "10.0.0.#{9+i}"
+      node.vm.provider "parallels" do |prl|
+        prl.memory = 4096
+        prl.cpus = 2
+      end
+
+      # Sync necessary folders
+      node.vm.synced_folder "setup", "/vagrant/setup", rsync_auto: true
+      node.vm.synced_folder "go-tarball", "/vagrant/go-tarball", create: true, rsync_auto: true
+      node.vm.synced_folder "sample-controller", "/home/vagrant/sample-controller", type: "rsync", rsync_auto: true
+
+      # Provision scripts
+      node.vm.provision "shell", path: "setup/common.sh"
+      node.vm.provision "shell", path: "setup/worker.sh"
     end
-
-    # Sync necessary folders
-    node.vm.synced_folder "../cri-o", "/home/vagrant/cri-o", type: "rsync", rsync_auto: true
-    node.vm.synced_folder "../cri-api", "/home/vagrant/cri-api", type: "rsync", rsync_auto: true
-    node.vm.synced_folder "setup", "/vagrant/setup", rsync_auto: true
-    node.vm.synced_folder "go-tarball", "/vagrant/go-tarball", create: true, rsync_auto: true
-    node.vm.synced_folder "migration", "/home/vagrant/migration", type: "rsync", rsync_auto: true
-
-    # Provision script
-    node.vm.provision "shell", path: "setup/common.sh"
   end
+
+  # Configure SSH for all machines
+  config.ssh.insert_key = false
+  config.ssh.forward_agent = true
+
+  # Enable automatic rsync
+  config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync_auto: true
 end
