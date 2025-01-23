@@ -5,12 +5,14 @@ import subprocess
 
 import grpc
 from google.protobuf.json_format import MessageToDict
+
 from migration.runtime.v1 import api_pb2, api_pb2_grpc
 
 GRPC_SERVER_ADDRESS = "unix:///var/run/crio/crio.sock"
 CHECKPOINT_DIR = "/tmp/pod_checkpoint"
 REMOTE_NODE = "10.0.0.11"
 REMOTE_CHECKPOINT_DIR = "/tmp/pod_checkpoint"
+
 
 class PodMigrator:
     """Handles pod migration operations."""
@@ -22,7 +24,7 @@ class PodMigrator:
     def select_pod(self, pod_id=None):
         """
         Select a pod for migration.
-        
+
         Args:
             pod_id: Optional pod ID. If provided, selects this specific pod.
                    If None, selects the first running pod.
@@ -32,8 +34,13 @@ class PodMigrator:
                 status_response = self.runtime_stub.PodSandboxStatus(
                     api_pb2.PodSandboxStatusRequest(pod_sandbox_id=pod_id)
                 )
-                if status_response.status.state == api_pb2.PodSandboxState.SANDBOX_READY:
-                    print(f"Selected pod: {status_response.status.metadata.name} ({pod_id})")
+                if (
+                    status_response.status.state
+                    == api_pb2.PodSandboxState.SANDBOX_READY
+                ):
+                    print(
+                        f"Selected pod: {status_response.status.metadata.name} ({pod_id})"
+                    )
                     return status_response.status
                 else:
                     print(f"Pod {pod_id} is not in ready state")
@@ -168,7 +175,7 @@ class PodMigrator:
     def migrate(self, pod_id=None):
         """
         Run the pod migration process.
-        
+
         Args:
             pod_id: Optional pod ID to migrate. If None, migrates first running pod.
         """
@@ -176,7 +183,9 @@ class PodMigrator:
         if not pod:
             return
 
-        container_ids = self.prepare_checkpoint(pod.id if hasattr(pod, 'id') else pod.metadata.uid)
+        container_ids = self.prepare_checkpoint(
+            pod.id if hasattr(pod, "id") else pod.metadata.uid
+        )
         if not container_ids:
             return
 

@@ -1,8 +1,7 @@
 from typing import Dict, List
 
-from migration.runtime.v1 import api_pb2
-
 from migration.pods.base_pod import BasePod
+from migration.runtime.v1 import api_pb2
 
 
 class CounterPod(BasePod):
@@ -30,14 +29,15 @@ class CounterPod(BasePod):
             {
                 "image": "python:3.9-slim",
                 "command": [
-                    '/bin/sh', '-c',
-                    'counter=0; '
-                    'while true; do '
+                    "/bin/sh",
+                    "-c",
+                    "counter=0; "
+                    "while true; do "
                     'timestamp=$(TZ=Asia/Singapore date "+%Y-%m-%d %H:%M:%S"); '
                     'echo "Counter: $counter | Time: $timestamp"; '
-                    'counter=$((counter+1)); '
-                    'sleep 1; '
-                    'done'
+                    "counter=$((counter+1)); "
+                    "sleep 1; "
+                    "done",
                 ],
             }
         ]

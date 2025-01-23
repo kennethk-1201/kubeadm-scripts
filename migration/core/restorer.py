@@ -3,10 +3,13 @@ import os
 import uuid
 from dataclasses import dataclass
 from typing import Dict, Optional
+
 import grpc
+
 from migration.runtime.v1 import api_pb2, api_pb2_grpc
 
 GRPC_SERVER_ADDRESS = "unix:///var/run/crio/crio.sock"
+
 
 @dataclass
 class PodMetadata:
@@ -17,6 +20,7 @@ class PodMetadata:
     log_directory: str
     labels: Dict[str, str]
     annotations: Dict[str, str]
+
 
 @dataclass
 class ContainerMetadata:
@@ -83,7 +87,7 @@ class PodRestorer:
             attempt=int(metadata.get("attempt", 0)),
             log_directory=pod_status.get("log_directory", "/var/log/pods"),
             labels=pod_status.get("labels", {}),
-            annotations=pod_status.get("annotations", {})
+            annotations=pod_status.get("annotations", {}),
         )
 
     @staticmethod
@@ -105,7 +109,7 @@ class PodRestorer:
                 name=metadata.name,
                 uid=metadata.uid,
                 namespace=metadata.namespace,
-                attempt=metadata.attempt
+                attempt=metadata.attempt,
             ),
             hostname=f"{metadata.name}-host",
             log_directory=metadata.log_directory,
@@ -113,7 +117,7 @@ class PodRestorer:
             port_mappings=[],
             labels=metadata.labels,
             annotations=metadata.annotations,
-            linux=api_pb2.LinuxPodSandboxConfig(security_context=security_context)
+            linux=api_pb2.LinuxPodSandboxConfig(security_context=security_context),
         )
 
     def _create_pod_sandbox(self, config: api_pb2.PodSandboxConfig) -> str:
@@ -130,14 +134,21 @@ class PodRestorer:
         )
         return response.status.state == api_pb2.PodSandboxState.SANDBOX_READY
 
-    def _process_containers(self, checkpoint_dir: str, pod_id: str, pod_config: api_pb2.PodSandboxConfig):
+    def _process_containers(
+        self, checkpoint_dir: str, pod_id: str, pod_config: api_pb2.PodSandboxConfig
+    ):
         """Stage 6: Process and restore containers."""
-        container_files = [f for f in os.listdir(checkpoint_dir)
-                           if f.endswith("_status.json") and f != "pod_status.json"]
+        container_files = [
+            f
+            for f in os.listdir(checkpoint_dir)
+            if f.endswith("_status.json") and f != "pod_status.json"
+        ]
 
         for status_file in container_files:
             container_id = status_file.replace("_status.json", "")
-            container_metadata = self._load_container_metadata(checkpoint_dir, status_file)
+            container_metadata = self._load_container_metadata(
+                checkpoint_dir, status_file
+            )
 
             if not container_metadata:
                 continue
@@ -146,7 +157,9 @@ class PodRestorer:
             self._restore_container(pod_id, container_config, pod_config)
 
     @staticmethod
-    def _load_container_metadata(checkpoint_dir: str, status_file: str) -> Optional[ContainerMetadata]:
+    def _load_container_metadata(
+        checkpoint_dir: str, status_file: str
+    ) -> Optional[ContainerMetadata]:
         """Load and transform container metadata."""
         container_id = status_file.replace("_status.json", "")
         checkpoint_archive = os.path.join(checkpoint_dir, f"{container_id}.tar")
@@ -163,29 +176,36 @@ class PodRestorer:
 
         return ContainerMetadata(
             name=f"{status.get('metadata', {}).get('name', 'container')}-{uuid.uuid4().hex[:6]}",
-            attempt=int(status.get('metadata', {}).get('attempt', 0)),
+            attempt=int(status.get("metadata", {}).get("attempt", 0)),
             image=checkpoint_archive,
-            labels=status.get('labels', {}),
-            annotations=status.get('annotations', {'io.kubernetes.cri-o.restore': 'true'}),
-            log_path=os.path.basename(status.get('logPath', 'container.log'))
+            labels=status.get("labels", {}),
+            annotations=status.get(
+                "annotations", {"io.kubernetes.cri-o.restore": "true"}
+            ),
+            log_path=os.path.basename(status.get("logPath", "container.log")),
         )
 
     @staticmethod
-    def _transform_to_container_config(metadata: ContainerMetadata) -> api_pb2.ContainerConfig:
+    def _transform_to_container_config(
+        metadata: ContainerMetadata,
+    ) -> api_pb2.ContainerConfig:
         """Transform container metadata to config."""
         return api_pb2.ContainerConfig(
             metadata=api_pb2.ContainerMetadata(
-                name=metadata.name,
-                attempt=metadata.attempt
+                name=metadata.name, attempt=metadata.attempt
             ),
             image=api_pb2.ImageSpec(image=metadata.image),
             labels=metadata.labels,
             annotations=metadata.annotations,
-            log_path=metadata.log_path
+            log_path=metadata.log_path,
         )
 
-    def _restore_container(self, pod_id: str, container_config: api_pb2.ContainerConfig,
-                           pod_config: api_pb2.PodSandboxConfig):
+    def _restore_container(
+        self,
+        pod_id: str,
+        container_config: api_pb2.ContainerConfig,
+        pod_config: api_pb2.PodSandboxConfig,
+    ):
         """Execute container restoration."""
         try:
             create_response = self.runtime_stub.CreateContainer(

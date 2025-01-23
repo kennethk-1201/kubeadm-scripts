@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-echo "Cleaning up pods and containers..."
+echo "Cleaning up pods, containers, log directories, and shared logs..."
 
 # Stop and remove all containers
 echo "Stopping all containers..."
@@ -20,6 +20,16 @@ sudo crictl rmp $(sudo crictl pods -q) >/dev/null 2>&1 || true
 if [ -d "/tmp/pod_checkpoint" ]; then
     echo "Clearing /tmp/pod_checkpoint directory..."
     sudo rm -rf /tmp/pod_checkpoint
+fi
+
+# Remove all .log directories from /home/vagrant
+echo "Removing all .log directories in /home/vagrant..."
+sudo find /home/vagrant -type d -name "*.log" -exec rm -rf {} +
+
+# Clear the shared logs directory
+if [ -d "/tmp/shared-logs" ]; then
+    echo "Clearing /tmp/shared-logs directory..."
+    sudo rm -rf /tmp/shared-logs
 fi
 
 echo "Cleanup complete."

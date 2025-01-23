@@ -1,9 +1,8 @@
 import os
 from typing import Dict, List
 
-from migration.runtime.v1 import api_pb2
-
 from migration.pods.base_pod import BasePod
+from migration.runtime.v1 import api_pb2
 
 
 class HttpServerPod(BasePod):
@@ -47,13 +46,13 @@ class HttpServerPod(BasePod):
                     "python",
                     "-c",
                     f"""
-                    import http.server
-                    import socketserver
-                    PORT = {self.http_port}
-                    Handler = http.server.SimpleHTTPRequestHandler
-                    with socketserver.TCPServer(("", PORT), Handler) as httpd:
-                        print(f"Serving at port {{PORT}}")
-                        httpd.serve_forever()
+import http.server
+import socketserver
+PORT = {self.http_port}
+Handler = http.server.SimpleHTTPRequestHandler
+with socketserver.TCPServer(("", PORT), Handler) as httpd:
+    print(f"Serving at port {{PORT}}")
+    httpd.serve_forever()
                     """,
                 ],
                 "mounts": [
@@ -71,13 +70,13 @@ class HttpServerPod(BasePod):
                     "python",
                     "-c",
                     """
-                    import time
-                    import datetime
-                    while True:
-                        with open('/shared/app.log', 'a') as f:
-                            timestamp = datetime.datetime.now().isoformat()
-                            f.write(f"{timestamp}: Log entry\\n")
-                        time.sleep(1)
+import time
+import datetime
+while True:
+    with open('/shared/app.log', 'a') as f:
+        timestamp = datetime.datetime.now().isoformat()
+        f.write(f"{timestamp}: Log entry\\n")
+    time.sleep(1)
                     """,
                 ],
                 "mounts": [
@@ -89,9 +88,6 @@ class HttpServerPod(BasePod):
                 ],
             },
         ]
-
-    def get_annotations(self) -> Dict[str, str]:
-        return {"shared-volume": self.shared_volume_path}
 
     def get_labels(self) -> Dict[str, str]:
         return {"app": "http-server", "type": "web"}
