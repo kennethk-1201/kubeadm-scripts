@@ -1,0 +1,18 @@
+sequenceDiagram
+    participant API as Kubernetes API
+    participant Controller as Migration Controller
+    participant Source as Source Node
+    participant Target as Target Node
+    participant Storage as Checkpoint Storage
+
+    API->>Controller: Create MigratingPod CR
+    Controller->>API: Update Status (Pending)
+    Controller->>Source: Initiate Checkpoint
+    Source->>Storage: Save Container State
+    Source-->>Controller: Checkpoint Complete
+    Controller->>Target: Prepare for Restore
+    Storage->>Target: Transfer Checkpoint Data
+    Target->>Target: Restore Container
+    Target-->>Controller: Restore Complete
+    Controller->>API: Update Status (Succeeded)
+    Controller->>API: Update Service/DNS

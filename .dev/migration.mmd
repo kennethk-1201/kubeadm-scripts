@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant User
+    participant PodMigration
+    participant RuntimeServiceStub
+    participant FileSystem
+    participant RemoteNode
+
+    User ->> PodMigration: Start migration
+    PodMigration ->> RuntimeServiceStub: ListPodSandbox
+    RuntimeServiceStub -->> PodMigration: Return running pods
+    PodMigration ->> RuntimeServiceStub: ListContainers (for selected pod)
+    RuntimeServiceStub -->> PodMigration: Return container IDs
+
+    PodMigration ->> RuntimeServiceStub: CheckpointContainer (each container)
+    PodMigration ->> FileSystem: Save container and pod status
+    PodMigration ->> RemoteNode: Transfer checkpoint data (SCP)
+    PodMigration ->> RuntimeServiceStub: Stop and remove pod
+    PodMigration ->> FileSystem: Clean up checkpoint directory
+    PodMigration ->> User: Migration completed

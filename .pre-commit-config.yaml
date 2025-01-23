@@ -1,0 +1,31 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        language_version: python3.11
+        exclude: '.*\.dylib$'
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2  # Use the ref you want to point at
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]
+        exclude: '.*\.dylib$'
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: '.*\.dylib$'
+      - id: end-of-file-fixer
+        exclude: '.*\.dylib$'
+      - id: check-yaml
+        exclude: '.*\.dylib$'
+      - id: check-added-large-files
+        exclude: '.*\.dylib$'
+
+  - repo: https://github.com/editorconfig-checker/editorconfig-checker.python
+    rev: '3.0.3'  # pick a git hash / tag to point to
+    hooks:
+    - id: editorconfig-checker

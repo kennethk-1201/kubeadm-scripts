@@ -1,0 +1,20 @@
+sequenceDiagram
+    participant User
+    participant PodSandboxManager
+    participant RuntimeServiceStub
+    participant ImageServiceStub
+
+    User ->> PodSandboxManager: Start stateful pod
+    PodSandboxManager ->> RuntimeServiceStub: RunPodSandbox (Create pod sandbox)
+    RuntimeServiceStub -->> PodSandboxManager: PodSandboxID
+
+    PodSandboxManager ->> ImageServiceStub: PullImage (busybox:latest)
+    ImageServiceStub -->> PodSandboxManager: Image pulled
+
+    PodSandboxManager ->> RuntimeServiceStub: CreateContainer (Stateful config)
+    RuntimeServiceStub -->> PodSandboxManager: ContainerID
+
+    PodSandboxManager ->> RuntimeServiceStub: StartContainer (ContainerID)
+    RuntimeServiceStub -->> PodSandboxManager: Container started
+
+    PodSandboxManager ->> User: Return PodSandboxID and ContainerID

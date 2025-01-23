@@ -1,0 +1,23 @@
+sequenceDiagram
+    participant User
+    participant PodMigration
+    participant RuntimeServiceStub
+    participant FileSystem
+
+    User ->> PodMigration: Start pod restoration
+    PodMigration ->> FileSystem: Load pod status from JSON
+    PodMigration ->> RuntimeServiceStub: RunPodSandbox
+    RuntimeServiceStub -->> PodMigration: Return new PodSandboxID
+
+    PodMigration ->> RuntimeServiceStub: Check PodSandboxStatus
+    RuntimeServiceStub -->> PodMigration: Status SANDBOX_READY
+
+    loop For each container
+        PodMigration ->> FileSystem: Load container status
+        PodMigration ->> RuntimeServiceStub: CreateContainer
+        RuntimeServiceStub -->> PodMigration: Return ContainerID
+        PodMigration ->> RuntimeServiceStub: StartContainer
+        RuntimeServiceStub -->> PodMigration: Container started
+    end
+
+    PodMigration ->> User: Pod restoration completed
