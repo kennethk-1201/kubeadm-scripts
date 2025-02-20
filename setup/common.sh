@@ -28,8 +28,6 @@ sudo tee /etc/containers/registries.conf <<EOF
 unqualified-search-registries = ["docker.io", "quay.io", "gcr.io", "registry.k8s.io"]
 EOF
 
-sudo systemctl restart crio
-
 # ------------------------------------------------------------------------------
 # 3. INSTALL GO
 # ------------------------------------------------------------------------------
@@ -54,32 +52,18 @@ sudo curl -L -O https://github.com/containernetworking/plugins/releases/download
 sudo tar -xzf cni-plugins-linux-arm64-v1.3.0.tgz
 sudo rm cni-plugins-linux-arm64-v1.3.0.tgz
 
-# Create simple bridge config
-sudo mkdir -p /etc/cni/net.d
-cat <<EOF | sudo tee /etc/cni/net.d/10-bridge.conf
-{
-  "cniVersion": "0.3.1",
-  "name": "bridge",
-  "type": "bridge",
-  "bridge": "cni0",
-  "isGateway": true,
-  "ipMasq": true,
-  "ipam": {
-    "type": "host-local",
-    "ranges": [
-      [{"subnet": "10.244.0.0/16"}]
-    ],
-    "routes": [{"dst": "0.0.0.0/0"}]
-  }
-}
-EOF
-
 # ------------------------------------------------------------------------------
 # 5. INSTALL & CONFIGURE CRI-O
 # ------------------------------------------------------------------------------
 cd /home/vagrant/cri-o
 make
 sudo make install
+
+# ✅ Ensure CRI-O is properly installed before proceeding
+if ! command -v crio &> /dev/null; then
+    echo "ERROR: CRI-O installation failed. Exiting."
+    exit 1
+fi
 
 sudo mkdir -p /etc/crio
 sudo crio config | sudo tee /etc/crio/crio.conf
@@ -96,9 +80,15 @@ EOL
 # Enable CRIU support
 sudo sed -i 's/^# enable_criu_support = false/enable_criu_support = true/' /etc/crio/crio.conf
 
-# Start CRI-O
+# ✅ Fix crio.service restart logic
 sudo systemctl daemon-reload
-sudo systemctl enable --now crio
+if systemctl list-unit-files --type=service | grep -q "^crio.service"; then
+    echo "CRI-O service found. Enabling and starting..."
+    sudo systemctl enable --now crio
+else
+    echo "WARNING: CRI-O service not found. Skipping enable/start."
+fi
+
 sudo groupadd -f crio
 sudo usermod -aG crio "$USER"
 
@@ -160,23 +150,6 @@ sudo sed -i '/swap/d' /etc/fstab
 echo "common.sh completed successfully!"
 
 # ------------------------------------------------------------------------------
-# 9. BUILD & LOAD CONTROLLER IMAGE USING BUILDAH
-# ------------------------------------------------------------------------------
-cd /home/vagrant/k8s-checkpoint-controller
-
-# Ensure registries are set correctly for Buildah
-export BUILDAH_FORMAT=docker
-
-# Build the controller image
-sudo buildah bud --build-arg TARGETOS=linux --build-arg TARGETARCH=arm64 -t localhost/controller:latest .
-
-# Push the image into CRI-O
-sudo buildah push localhost/controller:latest docker://localhost/controller:latest
-sudo crictl pull localhost/controller:latest
-
-echo "Controller image successfully built and loaded into CRI-O!"
-
-# ------------------------------------------------------------------------------
-# 10. OPTIONAL: AUTO-LOAD MASTER KUBECONFIG
+# 9. OPTIONAL: AUTO-LOAD MASTER KUBECONFIG
 # ------------------------------------------------------------------------------
 export KUBECONFIG=/vagrant/admin.conf

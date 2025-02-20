@@ -40,7 +40,19 @@ nodeRegistration:
 EOF
 
 # ------------------------------------------------------------------------------
-# 2. INIT THE CLUSTER
+# 2. FORCE KUBELET TO USE CRI-O
+# ------------------------------------------------------------------------------
+sudo mkdir -p /etc/systemd/system/kubelet.service.d
+cat <<EOF | sudo tee /etc/systemd/system/kubelet.service.d/10-crio.conf
+[Service]
+Environment="KUBELET_EXTRA_ARGS=--container-runtime-endpoint=unix:///var/run/crio/crio.sock"
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl restart kubelet
+
+# ------------------------------------------------------------------------------
+# 3. INIT THE CLUSTER
 # ------------------------------------------------------------------------------
 sudo kubeadm config images pull
 
@@ -51,7 +63,13 @@ sudo kubeadm init \
   --ignore-preflight-errors Swap
 
 # ------------------------------------------------------------------------------
-# 3. POST-INSTALL SETUP
+# 4. VERIFY KUBELET IS USING CRI-O
+# ------------------------------------------------------------------------------
+ps aux | grep kubelet | grep crio
+crictl info | grep 'runtimeName'
+
+# ------------------------------------------------------------------------------
+# 5. POST-INSTALL SETUP
 # ------------------------------------------------------------------------------
 mkdir -p "$HOME/.kube"
 sudo cp -i /etc/kubernetes/admin.conf "$HOME/.kube/config"
@@ -71,7 +89,7 @@ chmod 700 /vagrant/setup.sh
 sudo kubectl taint nodes --all node-role.kubernetes.io/control-plane- || true
 
 # ------------------------------------------------------------------------------
-# 4. COPY ADMIN.CONF FOR WORKERS
+# 6. COPY ADMIN.CONF FOR WORKERS
 # ------------------------------------------------------------------------------
 # This allows worker nodes to automatically pick up the master's kubeconfig
 sudo cp /etc/kubernetes/admin.conf /vagrant/admin.conf
